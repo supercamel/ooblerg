@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+target="${OOBLERG_TARGET:-x86_64-w64-mingw32}"
+"${target}-objdump" -p "$1" |
+  awk '/DLL Name:/ { print "        " $3 " => " $3 " (0x00000000)" }'

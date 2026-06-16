@@ -1,0 +1,622 @@
+{
+  "schema": 1,
+  "target": "x86_64-w64-mingw32",
+  "prefix": "/mingw64",
+  "packages": [
+    {
+      "name": "mingw-w64-runtime",
+      "kind": "runtime-seed",
+      "version_package": "mingw-w64-x86-64-dev",
+      "description": "Ubuntu MinGW headers, CRT, import libraries, and active GCC runtime DLLs repackaged into the ooblerg sysroot."
+    },
+    {
+      "name": "vala",
+      "source": "vala",
+      "version_package": "valac",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--disable-valadoc",
+        "GI_GIRDIR=/mingw64/share/gir-1.0"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "gtk4",
+      "source": "gtk4",
+      "version_package": "libgtk-4-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "libffi",
+        "zlib",
+        "libpng",
+        "jpeg",
+        "tiff",
+        "cairo",
+        "fontconfig",
+        "freetype",
+        "gdk-pixbuf",
+        "graphene",
+        "harfbuzz",
+        "pango",
+        "libepoxy"
+      ],
+      "meson_options": [
+        "-Dmedia-gstreamer=disabled",
+        "-Dbuild-tests=false",
+        "-Dbuild-examples=false",
+        "-Dbuild-demos=false",
+        "-Dintrospection=enabled",
+        "-Dvulkan=disabled",
+        "-Dwayland-backend=false",
+        "-Dx11-backend=false",
+        "-Dwin32-backend=true"
+      ]
+    },
+    {
+      "name": "libgee",
+      "source": "libgee-0.8",
+      "version_package": "libgee-0.8-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "vala"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--enable-introspection=yes",
+        "--enable-vala",
+        "--disable-static",
+        "INTROSPECTION_SCANNER=${ROOT}/tools/ooblerg-g-ir-scanner",
+        "INTROSPECTION_COMPILER=/usr/bin/g-ir-compiler"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "libsoup3",
+      "source": "libsoup3",
+      "version_package": "libsoup-3.0-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "brotli",
+        "nghttp2",
+        "libpsl",
+        "sqlite",
+        "zlib"
+      ],
+      "meson_options": [
+        "-Dintrospection=enabled",
+        "-Dvapi=disabled",
+        "-Dgssapi=disabled",
+        "-Dntlm=disabled",
+        "-Dbrotli=enabled",
+        "-Dtls_check=false",
+        "-Dsysprof=disabled",
+        "-Dtests=false",
+        "-Dinstalled_tests=false",
+        "-Ddocs=disabled"
+      ]
+    },
+    {
+      "name": "glib",
+      "source": "glib2.0",
+      "version_package": "libglib2.0-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "gettext",
+        "libffi",
+        "pcre2",
+        "zlib"
+      ],
+      "meson_options": [
+        "-Dintrospection=disabled",
+        "-Dtests=false",
+        "-Dinstalled_tests=false",
+        "-Dgtk_doc=false",
+        "-Dman-pages=disabled",
+        "-Dselinux=disabled",
+        "-Dxattr=false",
+        "-Dlibmount=disabled"
+      ]
+    },
+    {
+      "name": "gobject-introspection",
+      "version_package": "gobject-introspection",
+      "build_system": "custom",
+      "deps": [
+        "glib"
+      ],
+      "commands": [
+        "mkdir -p ${DESTDIR}/mingw64/lib/pkgconfig ${DESTDIR}/mingw64/share/gobject-introspection-1.0 ${DESTDIR}/mingw64/share/aclocal",
+        "cp /usr/share/gobject-introspection-1.0/gdump.c ${DESTDIR}/mingw64/share/gobject-introspection-1.0/gdump.c",
+        "test ! -f /usr/share/aclocal/introspection.m4 || cp /usr/share/aclocal/introspection.m4 ${DESTDIR}/mingw64/share/aclocal/introspection.m4",
+        "version=$(env -u PKG_CONFIG_LIBDIR -u PKG_CONFIG_SYSROOT_DIR pkg-config --modversion gobject-introspection-1.0); printf '%s\\n' 'prefix=/mingw64' 'bindir=${prefix}/bin' 'datadir=${prefix}/share' 'includedir=${prefix}/include' 'libdir=${prefix}/lib' '' 'g_ir_scanner=${bindir}/g-ir-scanner' 'g_ir_compiler=${bindir}/gi-compile-repository.exe' 'g_ir_generate=${bindir}/g-ir-generate.exe' 'gidatadir=${datadir}/gobject-introspection-1.0' 'girdir=${datadir}/gir-1.0' 'typelibdir=${libdir}/girepository-1.0' '' 'Name: gobject-introspection' 'Description: GObject Introspection compatibility metadata for cross GIR generation' \"Version: $version\" 'Requires: glib-2.0 >= 2.80.0, gobject-2.0 >= 2.80.0, girepository-2.0 >= 2.80.0' 'Libs: -L${libdir} -lgirepository-2.0' 'Cflags: -I${includedir}/glib-2.0' > ${DESTDIR}/mingw64/lib/pkgconfig/gobject-introspection-1.0.pc",
+        "version=$(env -u PKG_CONFIG_LIBDIR -u PKG_CONFIG_SYSROOT_DIR pkg-config --modversion gobject-introspection-1.0); printf '%s\\n' 'prefix=/mingw64' 'bindir=${prefix}/bin' 'datadir=${prefix}/share' 'includedir=${prefix}/include' 'libdir=${prefix}/lib' '' 'g_ir_scanner=${bindir}/g-ir-scanner' 'g_ir_compiler=${bindir}/gi-compile-repository.exe' 'g_ir_generate=${bindir}/g-ir-generate.exe' 'gidatadir=${datadir}/gobject-introspection-1.0' 'girdir=${datadir}/gir-1.0' 'typelibdir=${libdir}/girepository-1.0' '' 'Name: gobject-introspection' 'Description: GObject Introspection non-export metadata for cross GIR generation' \"Version: $version\" 'Requires: gobject-introspection-1.0, glib-2.0 >= 2.80.0, gobject-2.0 >= 2.80.0' 'Cflags: -I${includedir}/glib-2.0' > ${DESTDIR}/mingw64/lib/pkgconfig/gobject-introspection-no-export-1.0.pc"
+      ]
+    },
+    {
+      "name": "glib-introspection",
+      "source": "glib2.0",
+      "source_from": "glib",
+      "version_package": "libglib2.0-dev",
+      "build_system": "meson",
+      "deps": [
+        "gobject-introspection"
+      ],
+      "pre_configure": [
+        "perl -0pi -e \"s/if enable_gir\\n  # Replace the default g-ir-compiler target with the version we\\n  # just built\\.\\n  meson\\.override_find_program\\('g-ir-compiler', gicompilerepository\\)\\nendif/if enable_gir and not meson.is_cross_build()\\n  # Replace the default g-ir-compiler target with the version we\\n  # just built.\\n  meson.override_find_program('g-ir-compiler', gicompilerepository)\\nendif/s\" girepository/compiler/meson.build"
+      ],
+      "meson_options": [
+        "-Dintrospection=enabled",
+        "-Dtests=false",
+        "-Dinstalled_tests=false",
+        "-Dgtk_doc=false",
+        "-Dman-pages=disabled",
+        "-Dselinux=disabled",
+        "-Dxattr=false",
+        "-Dlibmount=disabled"
+      ],
+      "post_install": [
+        "find ${DESTDIR}/mingw64 -mindepth 1 -maxdepth 1 ! -name share ! -name lib -exec rm -rf {} +",
+        "find ${DESTDIR}/mingw64/share -mindepth 1 -maxdepth 1 ! -name gir-1.0 -exec rm -rf {} +",
+        "find ${DESTDIR}/mingw64/lib -mindepth 1 -maxdepth 1 ! -name girepository-1.0 -exec rm -rf {} +"
+      ]
+    },
+    {
+      "name": "libffi",
+      "source": "libffi",
+      "version_package": "libffi-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "pre_configure": [
+        "./autogen.sh"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "pcre2",
+      "source": "pcre2",
+      "version_package": "libpcre2-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--enable-pcre2-8",
+        "--enable-pcre2-16",
+        "--enable-pcre2-32",
+        "--disable-jit"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "zlib",
+      "source": "zlib",
+      "version_package": "zlib1g-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "pre_configure": [
+        "test -f zconf.h || mv zconf.h.included zconf.h",
+        "mkdir -p win32 && printf '%s\\n' '#include <winver.h>' '1 VERSIONINFO' 'FILEVERSION 1,3,0,0' 'PRODUCTVERSION 1,3,0,0' 'FILEFLAGSMASK 0x3fL' 'FILEFLAGS 0x0L' 'FILEOS VOS_NT_WINDOWS32' 'FILETYPE VFT_DLL' 'FILESUBTYPE 0x0L' 'BEGIN' '  BLOCK \"StringFileInfo\"' '  BEGIN' '    BLOCK \"040904b0\"' '    BEGIN' '      VALUE \"FileDescription\", \"zlib data compression library\"' '      VALUE \"FileVersion\", \"1.3\"' '      VALUE \"InternalName\", \"zlib1.dll\"' '      VALUE \"OriginalFilename\", \"zlib1.dll\"' '      VALUE \"ProductName\", \"zlib\"' '      VALUE \"ProductVersion\", \"1.3\"' '    END' '  END' '  BLOCK \"VarFileInfo\"' '  BEGIN' '    VALUE \"Translation\", 0x0409, 1200' '  END' 'END' > win32/zlib1.rc"
+      ],
+      "cmake_options": [
+        "-DZLIB_BUILD_EXAMPLES=OFF"
+      ],
+      "post_install": [
+        "cp ${DESTDIR}/mingw64/lib/libzlib.dll.a ${DESTDIR}/mingw64/lib/libz.dll.a",
+        "cp ${DESTDIR}/mingw64/lib/libzlibstatic.a ${DESTDIR}/mingw64/lib/libz.a",
+        "cp ${DESTDIR}/mingw64/bin/libzlib.dll ${DESTDIR}/mingw64/bin/zlib1.dll"
+      ]
+    },
+    {
+      "name": "libpng",
+      "source": "libpng1.6",
+      "version_package": "libpng-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "brotli",
+      "source": "brotli",
+      "version_package": "libbrotli-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DBUILD_SHARED_LIBS=ON",
+        "-DBROTLI_DISABLE_TESTS=ON"
+      ]
+    },
+    {
+      "name": "nghttp2",
+      "source": "nghttp2",
+      "version_package": "libnghttp2-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DENABLE_LIB_ONLY=ON",
+        "-DENABLE_APP=OFF",
+        "-DENABLE_HPACK_TOOLS=OFF",
+        "-DENABLE_EXAMPLES=OFF",
+        "-DENABLE_DOC=OFF",
+        "-DENABLE_FAILMALLOC=OFF",
+        "-DENABLE_HTTP3=OFF",
+        "-DENABLE_STATIC_LIB=ON",
+        "-DENABLE_SHARED_LIB=ON"
+      ]
+    },
+    {
+      "name": "sqlite",
+      "source": "sqlite3",
+      "version_package": "libsqlite3-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "pre_configure": [
+        "rm -f sqlite3.h sqlite3.c shell.c lemon lemon.exe lemon-for-build lemon-for-build.exe mksourceid mksourceid.exe mkkeywordhash mkkeywordhash.exe src-verify src-verify.exe"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--disable-readline",
+        "BUILD_CC=gcc",
+        "config_TARGET_EXEEXT=.exe"
+      ],
+      "pre_build": [
+        "sed -i 's/^BEXE = .*/BEXE = /; s/^TEXE = .*/TEXE = .exe/' Makefile",
+        "sed -i '/^TEXE =/a CROSS_BUILDING = yes' Makefile"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "libpsl",
+      "source": "libpsl",
+      "version_package": "libpsl-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "pre_configure": [
+        "perl -0pi -e 's/if \\(localtime_r\\(&t, &tm\\) != NULL\\)/if (localtime_s(&tm, &t) == 0)/' tools/psl.c"
+      ],
+      "meson_options": [
+        "-Druntime=no",
+        "-Dpsl_file=/usr/share/publicsuffix/public_suffix_list.dat",
+        "-Dpsl_testfile=/usr/share/doc/publicsuffix/examples/test_psl.txt",
+        "-Ddocs=false"
+      ]
+    },
+    {
+      "name": "jpeg",
+      "source": "libjpeg-turbo",
+      "version_package": "libjpeg-turbo8-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DENABLE_STATIC=ON",
+        "-DWITH_JPEG8=ON"
+      ]
+    },
+    {
+      "name": "tiff",
+      "source": "tiff",
+      "version_package": "libtiff-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib",
+        "jpeg"
+      ],
+      "cmake_options": [
+        "-DBUILD_SHARED_LIBS=ON",
+        "-Dtiff-tools=OFF",
+        "-Dtiff-tests=OFF",
+        "-Dtiff-contrib=OFF",
+        "-Dtiff-docs=OFF",
+        "-Djbig=OFF",
+        "-Djpeg12=OFF",
+        "-Dlerc=OFF",
+        "-Dlibdeflate=OFF",
+        "-Dlzma=OFF",
+        "-Dwebp=OFF",
+        "-Dzstd=OFF"
+      ]
+    },
+    {
+      "name": "freetype",
+      "source": "freetype",
+      "version_package": "libfreetype-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib",
+        "libpng"
+      ],
+      "meson_options": [
+        "-Dharfbuzz=disabled",
+        "-Dbrotli=disabled",
+        "-Dbzip2=disabled"
+      ]
+    },
+    {
+      "name": "fontconfig",
+      "source": "fontconfig",
+      "version_package": "libfontconfig-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "expat",
+        "freetype"
+      ],
+      "meson_options": [
+        "-Ddoc=disabled",
+        "-Dtests=disabled",
+        "-Dtools=enabled"
+      ]
+    },
+    {
+      "name": "pixman",
+      "source": "pixman",
+      "version_package": "libpixman-1-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "meson_options": [
+        "-Dtests=disabled"
+      ]
+    },
+    {
+      "name": "cairo",
+      "source": "cairo",
+      "version_package": "libcairo2-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "pixman",
+        "fontconfig",
+        "freetype",
+        "libpng",
+        "zlib"
+      ],
+      "meson_options": [
+        "-Dtests=disabled",
+        "-Dspectre=disabled",
+        "-Dsymbol-lookup=disabled",
+        "-Dxlib=disabled",
+        "-Dxcb=disabled",
+        "-Dgtk_doc=false"
+      ]
+    },
+    {
+      "name": "graphene",
+      "source": "graphene",
+      "version_package": "libgraphene-1.0-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection"
+      ],
+      "meson_options": [
+        "-Dintrospection=enabled",
+        "-Dtests=false"
+      ]
+    },
+    {
+      "name": "harfbuzz",
+      "source": "harfbuzz",
+      "version_package": "libharfbuzz-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "freetype"
+      ],
+      "meson_options": [
+        "-Dintrospection=enabled",
+        "-Dgobject=enabled",
+        "-Dtests=disabled",
+        "-Ddocs=disabled",
+        "-Dbenchmark=disabled"
+      ]
+    },
+    {
+      "name": "pango",
+      "source": "pango1.0",
+      "version_package": "libpango1.0-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "cairo",
+        "fontconfig",
+        "fribidi",
+        "freetype",
+        "harfbuzz"
+      ],
+      "meson_options": [
+        "-Dintrospection=enabled",
+        "-Dgtk_doc=false"
+      ]
+    },
+    {
+      "name": "gdk-pixbuf",
+      "source": "gdk-pixbuf",
+      "version_package": "libgdk-pixbuf-2.0-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "libpng",
+        "jpeg"
+      ],
+      "meson_options": [
+        "-Dintrospection=enabled",
+        "-Dinstalled_tests=false",
+        "-Dgtk_doc=false",
+        "-Dman=false",
+        "-Ddocs=false",
+        "-Dtests=false",
+        "-Dgio_sniffing=false",
+        "-Dtiff=disabled"
+      ]
+    },
+    {
+      "name": "libepoxy",
+      "source": "libepoxy",
+      "version_package": "libepoxy-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "meson_options": [
+        "-Dtests=false"
+      ]
+    },
+    {
+      "name": "gettext",
+      "source": "gettext",
+      "version_package": "gettext",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "commands": [
+        "find gettext-runtime \\( -name aclocal.m4 -o -name configure -o -name Makefile.in \\) -exec touch {} +",
+        "cd gettext-runtime && make distclean >/dev/null 2>&1 || true",
+        "cd gettext-runtime && ./configure --host=x86_64-w64-mingw32 --build=${BUILD_TRIPLET} --prefix=/mingw64 --disable-java --disable-native-java --disable-csharp",
+        "cd gettext-runtime && find . \\( -name aclocal.m4 -o -name configure -o -name Makefile.in \\) -exec touch {} +",
+        "cd gettext-runtime && make -j${JOBS}",
+        "cd gettext-runtime && make DESTDIR=${DESTDIR} install"
+      ]
+    },
+    {
+      "name": "expat",
+      "source": "expat",
+      "version_package": "libexpat1-dev",
+      "build_system": "cmake",
+      "source_subdir": "expat",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DEXPAT_BUILD_DOCS=OFF",
+        "-DEXPAT_BUILD_EXAMPLES=OFF",
+        "-DEXPAT_BUILD_FUZZERS=OFF",
+        "-DEXPAT_BUILD_TESTS=OFF",
+        "-DEXPAT_BUILD_TOOLS=OFF",
+        "-DEXPAT_SHARED_LIBS=ON"
+      ]
+    },
+    {
+      "name": "fribidi",
+      "source": "fribidi",
+      "version_package": "libfribidi-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "meson_options": [
+        "-Ddocs=false",
+        "-Dtests=false"
+      ]
+    }
+  ]
+}

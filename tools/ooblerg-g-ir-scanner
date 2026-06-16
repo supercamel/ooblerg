@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+REAL_SCANNER = os.environ.get("OOBLERG_REAL_G_IR_SCANNER", "/usr/bin/g-ir-scanner")
+PE_LDD = ROOT / "tools" / "ooblerg-pe-ldd"
+
+
+def main():
+    argv = [REAL_SCANNER]
+    wrapper = os.environ.get("OOBLERG_EXE_WRAPPER")
+    if wrapper:
+        argv.append(f"--use-binary-wrapper={wrapper}")
+        argv.append(f"--use-ldd-wrapper={PE_LDD}")
+        argv.append("--lib-dirs-envvar=PATH")
+    argv.extend(sys.argv[1:])
+    raise SystemExit(subprocess.call(argv))
+
+
+if __name__ == "__main__":
+    main()
