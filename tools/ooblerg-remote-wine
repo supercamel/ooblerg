@@ -1,0 +1,262 @@
+#!/usr/bin/env python3
+import os
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / "out"
+WINEPATH_DIRS = []
+
+
+def ssh_args():
+    (OUT / "vm").mkdir(parents=True, exist_ok=True)
+    args = [
+        "ssh",
+        "-p",
+        os.environ.get("OOBLERG_REMOTE_SSH_PORT", "2222"),
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-o",
+        f"UserKnownHostsFile={OUT / 'vm' / 'known_hosts'}",
+        "-o",
+        "ControlMaster=auto",
+        "-o",
+        "ControlPersist=10m",
+        "-o",
+        f"ControlPath={OUT / 'vm' / 'ssh-%C'}",
+    ]
+    key = Path(os.environ.get("OOBLERG_REMOTE_SSH_KEY", OUT / "vm" / "id_ed25519"))
+    if key.exists():
+        args.extend(["-i", str(key)])
+    return args
+
+
+def remote():
+    return os.environ.get("OOBLERG_REMOTE", "sam@127.0.0.1")
+
+
+def rsync(source, destination):
+    subprocess.run(
+        [
+            "rsync",
+            "-a",
+            "--mkpath",
+            "-e",
+            " ".join(shlex.quote(arg) for arg in ssh_args()),
+            str(source),
+            f"{remote()}:{destination}",
+        ],
+        check=True,
+    )
+
+
+def rsync_from_remote(source, destination):
+    subprocess.run(
+        [
+            "rsync",
+            "-a",
+            "--mkpath",
+            "-e",
+            " ".join(shlex.quote(arg) for arg in ssh_args()),
+            f"{remote()}:{source}",
+            str(destination),
+        ],
+        check=True,
+    )
+
+
+def rsync_filtered(source_dir, destination_dir):
+    if not source_dir.is_dir():
+        return
+    subprocess.run(
+        [
+            "rsync",
+            "-a",
+            "--mkpath",
+            "--prune-empty-dirs",
+            "--include=*/",
+            "--include=*.dll",
+            "--include=*.DLL",
+            "--include=*.exe",
+            "--include=*.EXE",
+            "--exclude=*",
+            "-e",
+            " ".join(shlex.quote(arg) for arg in ssh_args()),
+            f"{source_dir}/",
+            f"{remote()}:{destination_dir}/",
+        ],
+        check=True,
+    )
+
+
+def imported_dlls(exe):
+    target = os.environ.get("OOBLERG_TARGET", "x86_64-w64-mingw32")
+    try:
+        output = subprocess.check_output([f"{target}-objdump", "-p", str(exe)], text=True)
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    dlls = []
+    for line in output.splitlines():
+        line = line.strip()
+        if line.startswith("DLL Name:"):
+            dlls.append(line.split(":", 1)[1].strip())
+    return dlls
+
+
+def find_local_dll(name):
+    lower = name.lower()
+    roots = [OUT / "build", OUT / "sysroot"]
+    matches = []
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in root.rglob("*"):
+            if path.is_file() and path.name.lower() == lower:
+                matches.append(path)
+    return sorted(matches, key=lambda p: (len(str(p)), str(p)))[0] if matches else None
+
+
+def remember_winepath(path):
+    path = Path(path)
+    if path not in WINEPATH_DIRS:
+        WINEPATH_DIRS.append(path)
+
+
+def sync_runtime_bits(exe):
+    rsync(exe, str(exe))
+    remember_winepath(exe.parent)
+
+    for item in os.environ.get("PATH", "").split(os.pathsep):
+        if not item:
+            continue
+        path = Path(item)
+        try:
+            path.relative_to(OUT / "build")
+        except ValueError:
+            continue
+        rsync_filtered(path, str(path))
+        remember_winepath(path)
+
+    sysroot_bin = OUT / "sysroot" / "mingw64" / "bin"
+    if sysroot_bin.exists():
+        remember_winepath(sysroot_bin)
+
+    for dll in imported_dlls(exe):
+        path = find_local_dll(dll)
+        if path:
+            rsync(path, str(path))
+            remember_winepath(path.parent)
+
+
+def wine_path(path):
+    text = str(path)
+    if text.startswith("/"):
+        return "Z:" + text.replace("/", "\\")
+    return text.replace("/", "\\")
+
+
+def translate_arg(arg):
+    translated = arg.replace(str(ROOT), wine_path(ROOT))
+    if wine_path(ROOT) in translated:
+        translated = translated.replace("/", "\\")
+    return translated
+
+
+def output_paths(args):
+    paths = []
+    for arg in args:
+        for chunk in re_split_paths(arg):
+            if chunk.startswith(str(ROOT)):
+                paths.append(Path(chunk))
+    return paths
+
+
+def re_split_paths(arg):
+    parts = []
+    current = []
+    for char in arg:
+        if char in "=,":
+            if current:
+                parts.append("".join(current))
+                current = []
+        else:
+            current.append(char)
+    if current:
+        parts.append("".join(current))
+    return parts
+
+
+def remote_file_exists(path):
+    return subprocess.run(
+        ssh_args() + [remote(), f"test -e {shlex.quote(str(path))}"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    ).returncode == 0
+
+
+def sync_outputs_back(args):
+    for path in output_paths(args):
+        if remote_file_exists(path):
+            rsync_from_remote(str(path), path)
+
+
+def sync_inputs_out(args):
+    for path in output_paths(args):
+        if path.exists():
+            rsync(path, str(path))
+
+
+def mapped_env():
+    env = {
+        "WINEDEBUG": os.environ.get("WINEDEBUG", "-all"),
+        "WINEDLLOVERRIDES": os.environ.get("WINEDLLOVERRIDES", "mscoree,mshtml,winemenubuilder.exe="),
+    }
+    path = os.environ.get("PATH")
+    if path:
+        env["PATH"] = path
+    gir_path = os.environ.get("GI_TYPELIB_PATH")
+    if gir_path:
+        env["GI_TYPELIB_PATH"] = gir_path
+    if WINEPATH_DIRS:
+        env["WINEPATH"] = ";".join(wine_path(path) for path in WINEPATH_DIRS)
+    return env
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("usage: ooblerg-remote-wine PROGRAM [ARG...]", file=sys.stderr)
+        return 2
+    args = sys.argv[1:]
+    self_path = Path(__file__).resolve()
+    while len(args) > 1 and Path(args[0]).resolve() == self_path:
+        args = args[1:]
+
+    exe = Path(args[0]).resolve()
+    if not exe.exists():
+        print(f"ooblerg-remote-wine: {exe} does not exist", file=sys.stderr)
+        return 127
+
+    sync_runtime_bits(exe)
+    sync_inputs_out(args[1:])
+
+    wine = os.environ.get("OOBLERG_REMOTE_WINE", "/usr/lib/wine/wine64")
+    assignments = " ".join(f"{key}={shlex.quote(value)}" for key, value in mapped_env().items())
+    remote_args = [translate_arg(arg) for arg in args[1:]]
+    argv = " ".join(shlex.quote(arg) for arg in [wine, str(exe), *remote_args])
+    cwd = shlex.quote(os.getcwd())
+    wine_server = shlex.quote(str(Path(wine).with_name("wineserver")))
+    command = (
+        f"cd {cwd} && {assignments} {argv}; "
+        f"status=$?; {assignments} {wine_server} -k >/dev/null 2>&1 || true; "
+        "exit $status"
+    )
+    result = subprocess.run(ssh_args() + [remote(), command]).returncode
+    sync_outputs_back(args[1:])
+    return result
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

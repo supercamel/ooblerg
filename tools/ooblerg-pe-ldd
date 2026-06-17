@@ -1,6 +1,88 @@
-#!/bin/sh
-set -eu
+#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+from pathlib import Path
 
-target="${OOBLERG_TARGET:-x86_64-w64-mingw32}"
-"${target}-objdump" -p "$1" |
-  awk '/DLL Name:/ { print "        " $3 " => " $3 " (0x00000000)" }'
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / "out"
+
+
+def imported_dlls(binary):
+    target = os.environ.get("OOBLERG_TARGET", "x86_64-w64-mingw32")
+    try:
+        output = subprocess.check_output([f"{target}-objdump", "-p", binary], text=True)
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    dlls = []
+    for line in output.splitlines():
+        line = line.strip()
+        if line.startswith("DLL Name:"):
+            dlls.append(line.split(":", 1)[1].strip())
+    return dlls
+
+
+def alias_for(dll):
+    lower = dll.lower()
+    if not lower.startswith("lib") or not lower.endswith(".dll"):
+        return None
+    stem = dll[:-4]
+    head, sep, tail = stem.rpartition("-")
+    if sep and tail.isdigit():
+        return f"{head}.dll"
+    return None
+
+
+def find_dll_for_library(library):
+    alias = f"lib{library}.dll"
+    aliases = {alias.lower(), f"{alias[:-4]}-0.dll".lower()}
+    roots = [OUT / "build", OUT / "sysroot"]
+    matches = []
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in root.rglob("*.dll"):
+            lower = path.name.lower()
+            if lower in aliases or alias_for(path.name) == alias:
+                matches.append(path)
+    return sorted(matches, key=lambda p: (len(str(p)), str(p)))[0] if matches else None
+
+
+def requested_libraries():
+    raw = os.environ.get("OOBLERG_GIR_LIBRARIES", "")
+    return [item for item in raw.split(os.pathsep) if item]
+
+
+def emit(alias, real):
+    print(f"        {alias} => {real} (0x00000000)")
+
+
+def main():
+    if len(sys.argv) != 2:
+        print("usage: ooblerg-pe-ldd BINARY", file=sys.stderr)
+        return 2
+
+    emitted = set()
+    for dll in imported_dlls(sys.argv[1]):
+        emit(dll, dll)
+        emitted.add(dll.lower())
+        alias = alias_for(dll)
+        if alias and alias.lower() not in emitted:
+            emit(alias, dll)
+            emitted.add(alias.lower())
+
+    for library in requested_libraries():
+        alias = f"lib{library}.dll"
+        if alias.lower() in emitted:
+            continue
+        dll = find_dll_for_library(library)
+        if dll:
+            emit(alias, dll.name)
+            emitted.add(alias.lower())
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -44,6 +44,7 @@
         "mingw-w64-runtime",
         "glib",
         "glib-introspection",
+        "win32-introspection",
         "libffi",
         "zlib",
         "libpng",
@@ -93,11 +94,17 @@
       ],
       "make": [
         "make",
-        "-j${JOBS}"
+        "-j${JOBS}",
+        "INTROSPECTION_MAKEFILE=/usr/share/gobject-introspection-1.0/Makefile.introspection",
+        "INTROSPECTION_COMPILER=/usr/bin/g-ir-compiler",
+        "INTROSPECTION_SCANNER=${ROOT}/tools/ooblerg-g-ir-scanner"
       ],
       "install": [
         "make",
         "DESTDIR=${DESTDIR}",
+        "INTROSPECTION_MAKEFILE=/usr/share/gobject-introspection-1.0/Makefile.introspection",
+        "INTROSPECTION_COMPILER=/usr/bin/g-ir-compiler",
+        "INTROSPECTION_SCANNER=${ROOT}/tools/ooblerg-g-ir-scanner",
         "install"
       ]
     },
@@ -193,6 +200,19 @@
         "find ${DESTDIR}/mingw64 -mindepth 1 -maxdepth 1 ! -name share ! -name lib -exec rm -rf {} +",
         "find ${DESTDIR}/mingw64/share -mindepth 1 -maxdepth 1 ! -name gir-1.0 -exec rm -rf {} +",
         "find ${DESTDIR}/mingw64/lib -mindepth 1 -maxdepth 1 ! -name girepository-1.0 -exec rm -rf {} +"
+      ]
+    },
+    {
+      "name": "win32-introspection",
+      "version": "1.0-ooblerg",
+      "build_system": "custom",
+      "deps": [
+        "gobject-introspection"
+      ],
+      "commands": [
+        "mkdir -p ${DESTDIR}${PREFIX}/share/gir-1.0 ${DESTDIR}${PREFIX}/lib/girepository-1.0",
+        "install -m 0644 ${ROOT}/support/gir/win32-1.0.gir ${DESTDIR}${PREFIX}/share/gir-1.0/win32-1.0.gir",
+        "g-ir-compiler --includedir=${DESTDIR}${PREFIX}/share/gir-1.0 -o ${DESTDIR}${PREFIX}/lib/girepository-1.0/win32-1.0.typelib ${DESTDIR}${PREFIX}/share/gir-1.0/win32-1.0.gir"
       ]
     },
     {

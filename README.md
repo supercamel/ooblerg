@@ -46,13 +46,25 @@ at `out/sysroot`.
 
 GObject introspection is a cross-build special case. The host
 `g-ir-scanner` compiles a temporary `x86_64-w64-mingw32` program and then must
-run it to dump GType data. Set `OOBLERG_EXE_WRAPPER` to a wrapper executable
-that can run those Windows programs before building introspection-enabled
-packages:
+run it to dump GType data. On an x86_64 Linux host, set `OOBLERG_EXE_WRAPPER`
+to Wine or another wrapper that can run those Windows programs before building
+introspection-enabled packages:
 
 ```sh
 export OOBLERG_EXE_WRAPPER=/path/to/wine64-or-wrapper
 ./tools/ooblerg.py build glib-introspection
+```
+
+On this ARM host, the working path is an amd64 QEMU VM with Wine installed.
+`tools/ooblerg-remote-wine` syncs the dump executable plus DLLs into the VM,
+runs it with Wine, and syncs generated GIR inputs/outputs back:
+
+```sh
+export OOBLERG_EXE_WRAPPER=$PWD/tools/ooblerg-remote-wine
+export OOBLERG_REMOTE=sam@127.0.0.1
+export OOBLERG_REMOTE_SSH_PORT=2222
+export OOBLERG_REMOTE_SSH_KEY=$PWD/out/vm/id_ed25519
+export OOBLERG_REMOTE_WINE=/usr/lib/wine/wine64
 ```
 
 To rebuild a clean Windows-style sysroot from the current artifact set:

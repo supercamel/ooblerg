@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<repository version="1.2"
+            xmlns="http://www.gtk.org/introspection/core/1.0"
+            xmlns:c="http://www.gtk.org/introspection/c/1.0"
+            xmlns:glib="http://www.gtk.org/introspection/glib/1.0">
+  <c:include name="windows.h"/>
+  <namespace name="win32" version="1.0"
+             c:identifier-prefixes=""
+             c:symbol-prefixes="">
+    <record name="BOOL" c:type="BOOL" foreign="1"/>
+    <record name="DWORD" c:type="DWORD" foreign="1"/>
+    <record name="HANDLE" c:type="HANDLE" foreign="1"/>
+    <record name="HBITMAP" c:type="HBITMAP" foreign="1"/>
+    <record name="HBRUSH" c:type="HBRUSH" foreign="1"/>
+    <record name="HCURSOR" c:type="HCURSOR" foreign="1"/>
+    <record name="HDC" c:type="HDC" foreign="1"/>
+    <record name="HGDIOBJ" c:type="HGDIOBJ" foreign="1"/>
+    <record name="HGLOBAL" c:type="HGLOBAL" foreign="1"/>
+    <record name="HICON" c:type="HICON" foreign="1"/>
+    <record name="HINSTANCE" c:type="HINSTANCE" foreign="1"/>
+    <record name="HMENU" c:type="HMENU" foreign="1"/>
+    <record name="HMODULE" c:type="HMODULE" foreign="1"/>
+    <record name="HMONITOR" c:type="HMONITOR" foreign="1"/>
+    <record name="HRGN" c:type="HRGN" foreign="1"/>
+    <record name="HWND" c:type="HWND" foreign="1"/>
+    <record name="LPARAM" c:type="LPARAM" foreign="1"/>
+    <record name="LRESULT" c:type="LRESULT" foreign="1"/>
+    <record name="MSG" c:type="MSG" foreign="1"/>
+    <record name="POINT" c:type="POINT" foreign="1"/>
+    <record name="RECT" c:type="RECT" foreign="1"/>
+    <record name="UINT" c:type="UINT" foreign="1"/>
+    <record name="WPARAM" c:type="WPARAM" foreign="1"/>
+  </namespace>
+</repository>
