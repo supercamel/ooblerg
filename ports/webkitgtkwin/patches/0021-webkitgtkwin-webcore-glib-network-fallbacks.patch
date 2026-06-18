@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: use GLib fallbacks for Windows network helpers
+
+Avoid a Windows COM macro collision in the autoconfig proxy resolver and let the GTK port use GIO content-type lookup when xdgmime is disabled on Windows.
+---
+--- a/Source/WebCore/platform/network/soup/WebKitAutoconfigProxyResolver.cpp
++++ b/Source/WebCore/platform/network/soup/WebKitAutoconfigProxyResolver.cpp
+@@ -97,9 +97,9 @@
+     return static_cast<char**>(g_task_propagate_pointer(G_TASK(result), error));
+ }
+ 
+-static void webkitAutoconfigProxyResolverInterfaceInit(GProxyResolverInterface* interface)
++static void webkitAutoconfigProxyResolverInterfaceInit(GProxyResolverInterface* resolverInterface)
+ {
+-    interface->lookup = webkitAutoconfigProxyResolverLookup;
+-    interface->lookup_async = webkitAutoconfigProxyResolverLookupAsync;
+-    interface->lookup_finish = webkitAutoconfigProxyResolverLookupFinish;
++    resolverInterface->lookup = webkitAutoconfigProxyResolverLookup;
++    resolverInterface->lookup_async = webkitAutoconfigProxyResolverLookupAsync;
++    resolverInterface->lookup_finish = webkitAutoconfigProxyResolverLookupFinish;
+ }
+--- a/Source/WebCore/platform/xdg/MIMETypeRegistryXdg.cpp
++++ b/Source/WebCore/platform/xdg/MIMETypeRegistryXdg.cpp
+@@ -28,6 +28,8 @@
+ 
+ #include <wtf/text/MakeString.h>
+ 
++#if USE(XDGMIME)
++
+ #define XDG_PREFIX _wk_xdg
+ #include "xdgmime.h"
+ 
+@@ -89,3 +91,48 @@
+ }
+ 
+ }
++
++#else
++
++#include <gio/gio.h>
++#include <wtf/glib/GUniquePtr.h>
++
++namespace WebCore {
++
++static String mimeTypeFromContentType(const char* contentType)
++{
++    if (!contentType || g_content_type_is_unknown(contentType))
++        return String();
++
++    GUniquePtr<char> mimeType(g_content_type_get_mime_type(contentType));
++    return mimeType ? String::fromUTF8(mimeType.get()) : String();
++}
++
++String MIMETypeRegistry::mimeTypeForExtension(StringView string)
++{
++    if (string.isEmpty())
++        return String();
++
++    auto filename = makeString("a."_s, string);
++    GUniquePtr<char> contentType(g_content_type_guess(filename.utf8().data(), nullptr, 0, nullptr));
++    return mimeTypeFromContentType(contentType.get());
++}
++
++bool MIMETypeRegistry::isApplicationPluginMIMEType(const String&)
++{
++    return false;
++}
++
++String MIMETypeRegistry::preferredExtensionForMIMEType(const String&)
++{
++    return String();
++}
++
++Vector<String> MIMETypeRegistry::extensionsForMIMEType(const String&)
++{
++    return { };
++}
++
++} // namespace WebCore
++
++#endif // USE(XDGMIME)
+-- 
+2.43.0

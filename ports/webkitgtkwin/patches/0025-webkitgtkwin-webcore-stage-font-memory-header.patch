@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: stage Windows font private headers
+
+The Windows Cairo font backend exposes FontMemoryResource through
+FontPlatformData.h, together with the SharedGDIObject helper. Stage those
+helpers as WebCore private headers so WebKit sources can include
+FontPlatformData.h from the copied private header directory.
+---
+--- a/Source/WebCore/PlatformGTK.cmake
++++ b/Source/WebCore/PlatformGTK.cmake
+@@ -35,6 +35,11 @@
+             platform/win/WebCoreInstanceHandle.cpp
+         )
+ 
++        list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS
++            platform/graphics/opentype/FontMemoryResource.h
++            platform/graphics/win/SharedGDIObject.h
++        )
++
+         list(APPEND WebCore_LIBRARIES
+             dwrite
+             gdi32

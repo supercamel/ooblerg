@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: keep libintl printf macros out of PrintStream
+
+MinGW libintl.h redirects printf/vprintf with preprocessor macros. When a
+translation unit includes GLib gettext helpers before WTF print headers, those
+macros rewrite C++ member names such as PrintStream::printf and
+StringPrintStream::vprintf. Undefine them before declaring the WTF print API.
+---
+ Source/WTF/wtf/PrintStream.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/Source/WTF/wtf/PrintStream.h b/Source/WTF/wtf/PrintStream.h
+index 59da841f5f36..5f8bdf14bc17 100644
+--- a/Source/WTF/wtf/PrintStream.h
++++ b/Source/WTF/wtf/PrintStream.h
+@@ -39,6 +39,11 @@
+ #include <wtf/RefPtr.h>
+ #include <wtf/StdLibExtras.h>
+ 
++#if defined(__MINGW32__)
++#undef printf
++#undef vprintf
++#endif
++
+ namespace WTF {
+ 
+ inline const char* boolForPrinting(bool value)
+-- 
+2.43.0

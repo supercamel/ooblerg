@@ -1,0 +1,46 @@
+diff --git a/Source/WebCore/PlatformGTK.cmake b/Source/WebCore/PlatformGTK.cmake
+index 71679f8..fd00341 100644
+--- a/Source/WebCore/PlatformGTK.cmake
++++ b/Source/WebCore/PlatformGTK.cmake
+@@ -7,7 +7,40 @@ include(platform/TextureMapper.cmake)
+ 
+ if (USE_CAIRO)
+     include(platform/Cairo.cmake)
+-    include(platform/FreeType.cmake)
++    if (WIN32)
++        list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES
++            "${WEBCORE_DIR}/platform/graphics/win"
++            "${WEBCORE_DIR}/platform/graphics/win/cairo"
++            "${WEBCORE_DIR}/platform/win"
++        )
++
++        list(APPEND WebCore_SOURCES
++            platform/graphics/opentype/OpenTypeUtilities.cpp
++            platform/graphics/win/ComplexTextControllerUniscribe.cpp
++            platform/graphics/win/FontCacheWin.cpp
++            platform/graphics/win/FontCustomPlatformDataWin.cpp
++            platform/graphics/win/FontDescriptionWin.cpp
++            platform/graphics/win/FontPlatformDataWin.cpp
++            platform/graphics/win/FontWin.cpp
++            platform/graphics/win/GlyphPageTreeNodeWin.cpp
++            platform/graphics/win/SimpleFontDataWin.cpp
++            platform/graphics/win/cairo/FontCacheWinCairo.cpp
++            platform/graphics/win/cairo/FontCustomPlatformDataWinCairo.cpp
++            platform/graphics/win/cairo/FontPlatformDataWinCairo.cpp
++            platform/win/BString.cpp
++            platform/win/WebCoreInstanceHandle.cpp
++        )
++
++        list(APPEND WebCore_LIBRARIES
++            dwrite
++            gdi32
++            ole32
++            usp10
++            uuid
++        )
++    else ()
++        include(platform/FreeType.cmake)
++    endif ()
+ elseif (USE_SKIA)
+     include(platform/Skia.cmake)
+ endif ()

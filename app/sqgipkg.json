@@ -1,0 +1,51 @@
+{
+  "name": "Ooblerg Package Manager",
+  "app_id": "dev.ooblerg.pkgmanager",
+  "desktop_terminal": false,
+  "desktop_categories": [
+    "Development",
+    "GTK"
+  ],
+  "script": "main.nut",
+  "target": "appimage",
+  "sqgi_source": {
+    "repo": "https://github.com/supercamel/sqgi.git",
+    "ref": "3a561e5bc4429283c39380898133f747cc26206f"
+  },
+  "linux": {
+    "arches": [
+      {
+        "arch": "x86_64",
+        "build_dir": "build-linux-x86_64",
+        "deb": {
+          "download": true,
+          "suite": "jammy",
+          "packages": [
+            "libgtk-4-1",
+            "gir1.2-gtk-4.0",
+            "libsoup-3.0-0",
+            "gir1.2-soup-3.0",
+            "libglib2.0-0",
+            "libgirepository-1.0-1"
+          ]
+        },
+        "build": [
+          "cmake -E rm -rf \"$SQGI_LINUX_BUILD_DIR\"",
+          "cmake -S \"$SQGI_SOURCE_DIR\" -B \"$SQGI_LINUX_BUILD_DIR\" -G Ninja ${SQGI_LINUX_CMAKE_TOOLCHAIN:+-DCMAKE_TOOLCHAIN_FILE=\"$SQGI_LINUX_CMAKE_TOOLCHAIN\"} -DCMAKE_BUILD_TYPE=Release -DSQ_ENABLE_JIT=ON",
+          "cmake --build \"$SQGI_LINUX_BUILD_DIR\""
+        ]
+      }
+    ]
+  },
+  "windows": {
+    "msys2_prefix": "mingw64",
+    "gdk_backend": "win32",
+    "build_dir": "build-windows-x86_64",
+    "packages": [],
+    "build": [
+      "cmake -E rm -rf \"$SQGI_WINDOWS_BUILD_DIR\"",
+      "cmake -S \"$SQGI_SOURCE_DIR\" -B \"$SQGI_WINDOWS_BUILD_DIR\" -G Ninja -DCMAKE_TOOLCHAIN_FILE=\"$SQGI_WIN_CMAKE_TOOLCHAIN\" -DCMAKE_BUILD_TYPE=Release -DSQ_ENABLE_JIT=ON",
+      "cmake --build \"$SQGI_WINDOWS_BUILD_DIR\" --target sqgi sqgi-bin"
+    ]
+  }
+}

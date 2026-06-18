@@ -1,0 +1,41 @@
+diff -urN a/Source/JavaScriptCore/CMakeLists.txt b/Source/JavaScriptCore/CMakeLists.txt
+--- a/Source/JavaScriptCore/CMakeLists.txt
++++ b/Source/JavaScriptCore/CMakeLists.txt
+@@ -409,6 +409,11 @@
+ set(LLIntSettingsExtractor_FRAMEWORKS ${JavaScriptCore_FRAMEWORKS})
+ set(LLIntSettingsExtractor_DEPENDENCIES JavaScriptCore_CopyHeaders JavaScriptCore_CopyPrivateHeaders)
+ WEBKIT_EXECUTABLE(LLIntSettingsExtractor)
++if (WIN32)
++    target_compile_definitions(LLIntSettingsExtractor PRIVATE
++        STATICALLY_LINKED_WITH_JavaScriptCore
++    )
++endif ()
+ 
+ # LLIntSettingsExtractor target needs to have a direct or indirect
+ # dependency to Bytecodes target for CMake Visual Studio generator to
+@@ -429,6 +434,11 @@
+ set(LLIntOffsetsExtractor_FRAMEWORKS ${JavaScriptCore_FRAMEWORKS})
+ set(LLIntOffsetsExtractor_DEPENDENCIES JavaScriptCore_CopyHeaders JavaScriptCore_CopyPrivateHeaders JSCBuiltins)
+ WEBKIT_EXECUTABLE(LLIntOffsetsExtractor)
++if (WIN32)
++    target_compile_definitions(LLIntOffsetsExtractor PRIVATE
++        STATICALLY_LINKED_WITH_JavaScriptCore
++    )
++endif ()
+ 
+ # The build system will execute asm.rb every time LLIntOffsetsExtractor's mtime is newer than
+ # LLIntAssembly.h's mtime. The problem we have here is: asm.rb has some built-in optimization
+@@ -1683,7 +1693,13 @@
+ 
+ target_include_directories(LowLevelInterpreterLib
+     PRIVATE "$<TARGET_PROPERTY:JavaScriptCore,INCLUDE_DIRECTORIES>" "${JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS_DIR}/JavaScriptCore")
++if (WIN32)
++    target_compile_definitions(LowLevelInterpreterLib PRIVATE
++        BUILDING_JavaScriptCore
++        STATICALLY_LINKED_WITH_WTF
++    )
++endif ()
+ add_dependencies(LowLevelInterpreterLib Bytecodes JSCBuiltins)
+ if (TARGET WTF_CopyHeaders)
+     add_dependencies(LowLevelInterpreterLib WTF_CopyHeaders)
+ endif ()

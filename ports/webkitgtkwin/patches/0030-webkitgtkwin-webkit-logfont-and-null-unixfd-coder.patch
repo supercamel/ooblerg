@@ -1,0 +1,117 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@ooblerg.local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: add LOGFONT wrapper and null Unix FD coder
+
+The Windows Cairo font serializer now includes the LOGFONT wrapper that the
+generated IPC code expects. GTK-on-Windows also still generates accelerated
+backing messages containing UnixFileDescriptor; provide a Windows-only null
+coder for that type so those Unix-only message fields compile and decode as
+invalid descriptors until the accelerated backing backend is split properly.
+---
+ Source/WebKit/Platform/IPC/ArgumentCoders.h | 23 +++++++++
+ Source/WebKit/Shared/CoreIPCLOGFONT.h       | 58 +++++++++++++++++++++
+ 2 files changed, 81 insertions(+)
+
+diff --git a/Source/WebKit/Platform/IPC/ArgumentCoders.h b/Source/WebKit/Platform/IPC/ArgumentCoders.h
+index fdad92b..1f3b11b 100644
+--- a/Source/WebKit/Platform/IPC/ArgumentCoders.h
++++ b/Source/WebKit/Platform/IPC/ArgumentCoders.h
+@@ -53,8 +53,31 @@
+ #if USE(UNIX_DOMAIN_SOCKETS)
+ #include "ArgumentCodersUnix.h"
+ #endif
++#if OS(WINDOWS)
++#include <wtf/unix/UnixFileDescriptor.h>
++#endif
+ 
+ namespace IPC {
++
++#if OS(WINDOWS)
++template<> struct ArgumentCoder<WTF::UnixFileDescriptor> {
++    template<typename Encoder>
++    static void encode(Encoder&, const WTF::UnixFileDescriptor&)
++    {
++    }
++
++    template<typename Encoder>
++    static void encode(Encoder&, WTF::UnixFileDescriptor&&)
++    {
++    }
++
++    template<typename Decoder>
++    static std::optional<WTF::UnixFileDescriptor> decode(Decoder&)
++    {
++        return WTF::UnixFileDescriptor { };
++    }
++};
++#endif
+ 
+ template<typename T, size_t Extent> struct ArgumentCoder<std::span<T, Extent>> {
+     template<typename Encoder>
+diff --git a/Source/WebKit/Shared/CoreIPCLOGFONT.h b/Source/WebKit/Shared/CoreIPCLOGFONT.h
+new file mode 100644
+index 0000000..714c942
+--- /dev/null
++++ b/Source/WebKit/Shared/CoreIPCLOGFONT.h
+@@ -0,0 +1,58 @@
++/*
++ * Copyright (C) 2026 WebKitGTKWin Project.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
++ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
++ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
++ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
++ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
++ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
++ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#pragma once
++
++#if OS(WINDOWS) && USE(CAIRO)
++
++#include <span>
++#include <windows.h>
++
++namespace WebKit {
++
++class CoreIPCLOGFONT {
++public:
++    explicit CoreIPCLOGFONT(const LOGFONT& logFont)
++        : m_logFont(logFont)
++    {
++    }
++
++    static LOGFONT create(std::span<const LOGFONT, 1> data)
++    {
++        return data[0];
++    }
++
++    std::span<const LOGFONT, 1> data() const
++    {
++        return std::span<const LOGFONT, 1> { &m_logFont, 1 };
++    }
++
++private:
++    LOGFONT m_logFont { };
++};
++
++} // namespace WebKit
++
++#endif // OS(WINDOWS) && USE(CAIRO)
+-- 
+2.45.0

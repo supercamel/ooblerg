@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@ooblerg.local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: guard Unix process setup and GTK4 init macros
+
+The GTK auxiliary process entry point is still shared with the Unix backend.
+Keep Unix signal setup and glib-unix.h out of Windows builds while the process
+launcher backend is being split. GTK4 on Windows also defines gtk_init macros
+for ABI checks; undefine those before WebKit declares its GTK3-compatible
+two-argument wrappers.
+---
+ Source/WebKit/Shared/unix/AuxiliaryProcessMain.cpp | 8 ++++++--
+ Source/WebKit/UIProcess/gtk/GtkVersioning.h        | 5 +++++
+ 2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/Source/WebKit/Shared/unix/AuxiliaryProcessMain.cpp b/Source/WebKit/Shared/unix/AuxiliaryProcessMain.cpp
+index e7ded89..6aa5b1a 100644
+--- a/Source/WebKit/Shared/unix/AuxiliaryProcessMain.cpp
++++ b/Source/WebKit/Shared/unix/AuxiliaryProcessMain.cpp
+@@ -28,7 +28,9 @@
+ 
+ #include <JavaScriptCore/Options.h>
+ #include <WebCore/ProcessIdentifier.h>
++#if !OS(WINDOWS)
+ #include <signal.h>
++#endif
+ #include <stdlib.h>
+ #include <string.h>
+ #include <wtf/text/StringToIntegerConversion.h>
+@@ -38,7 +40,7 @@
+ #include "unix/BreakpadExceptionHandler.h"
+ #endif
+ 
+-#if USE(GLIB)
++#if USE(GLIB) && !OS(WINDOWS)
+ #include <glib-unix.h>
+ #endif
+ 
+@@ -92,6 +94,7 @@ WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
+ IGNORE_CLANG_WARNINGS_BEGIN("unsafe-buffer-usage-in-libc-call")
+ void AuxiliaryProcess::platformInitialize(const AuxiliaryProcessInitializationParameters&)
+ {
++#if !OS(WINDOWS)
+     struct sigaction signalAction;
+     memset(&signalAction, 0, sizeof(signalAction));
+     RELEASE_ASSERT(!sigemptyset(&signalAction.sa_mask));
+@@ -109,6 +112,7 @@ void AuxiliaryProcess::platformInitialize(const AuxiliaryProcessInitializationPa
+         }, this);
+     }
+ #endif
++#endif
+ }
+ IGNORE_CLANG_WARNINGS_END
+ 
+diff --git a/Source/WebKit/UIProcess/gtk/GtkVersioning.h b/Source/WebKit/UIProcess/gtk/GtkVersioning.h
+index b7d8386..75f904a 100644
+--- a/Source/WebKit/UIProcess/gtk/GtkVersioning.h
++++ b/Source/WebKit/UIProcess/gtk/GtkVersioning.h
+@@ -27,6 +27,11 @@
+ 
+ #define GDK_MOD1_MASK GDK_ALT_MASK
+ 
++#if defined(G_OS_WIN32)
++#undef gtk_init
++#undef gtk_init_check
++#endif
++
+ typedef GdkKeyEvent GdkEventKey;
+ typedef GdkFocusEvent GdkEventFocus;
+ 

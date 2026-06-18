@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: tame WebCore MinGW compiler ICEs
+
+The MinGW GCC used by the cross build currently ICEs in generated WebCore
+bindings and unified sources during optimized prologue/epilogue generation.
+Use the same conservative compile flags already needed for JavaScriptCore so
+the port can continue building while deeper compiler or codegen fixes are
+investigated separately.
+---
+ Source/WebCore/CMakeLists.txt | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/Source/WebCore/CMakeLists.txt b/Source/WebCore/CMakeLists.txt
+index 72b70bbf61a3..2d1c427f3e85 100644
+--- a/Source/WebCore/CMakeLists.txt
++++ b/Source/WebCore/CMakeLists.txt
+@@ -3064,6 +3064,15 @@ GENERATE_DOM_NAME_ENUM(Namespace)
+ list(APPEND WebCore_SOURCES ${WebCore_DERIVED_SOURCES_DIR}/Namespace.cpp)
+ 
+ WEBKIT_COMPUTE_SOURCES(WebCore)
++if (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
++    set(WebCore_COMPILE_OPTIONS
++        ${WebCore_COMPILE_OPTIONS}
++        -O0
++        -Wa,-mbig-obj
++        -fno-asynchronous-unwind-tables
++    )
++    list(APPEND WebCore_PRIVATE_DEFINITIONS RELEASE_WITHOUT_OPTIMIZATIONS=1)
++endif ()
+ 
+ target_precompile_headers(WebCore PRIVATE WebCorePrefix.h)
+ 
+-- 
+2.43.0

@@ -10,6 +10,297 @@
       "description": "Ubuntu MinGW headers, CRT, import libraries, and active GCC runtime DLLs repackaged into the ooblerg sysroot."
     },
     {
+      "name": "native-sdk",
+      "kind": "meta",
+      "deps": [
+        "pkgconf",
+        "ninja",
+        "make",
+        "cmake",
+        "python",
+        "meson",
+        "gcc"
+      ],
+      "description": "Windows-native compiler and build tools for running builds inside the packaged sysroot without shipping a Unix shell."
+    },
+    {
+      "name": "pkgconf",
+      "source": "pkgconf",
+      "version_package": "pkgconf",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "meson_options": [
+        "-Dtests=false"
+      ],
+      "post_install": [
+        "rm -f ${DESTDIR}/mingw64/bin/pkg-config",
+        "test -e ${DESTDIR}/mingw64/bin/pkg-config.exe || cp ${DESTDIR}/mingw64/bin/pkgconf.exe ${DESTDIR}/mingw64/bin/pkg-config.exe"
+      ]
+    },
+    {
+      "name": "ninja",
+      "source": "ninja-build",
+      "version_package": "ninja-build",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DBUILD_TESTING=OFF"
+      ]
+    },
+    {
+      "name": "cmake",
+      "source": "cmake",
+      "version_package": "cmake",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DBUILD_TESTING=OFF",
+        "-DCMake_BUILD_TESTING=OFF",
+        "-DCMake_BUILD_QtDialog=OFF",
+        "-DCMake_USE_SYSTEM_LIBRARIES=OFF",
+        "-DCMAKE_USE_OPENSSL=OFF"
+      ]
+    },
+    {
+      "name": "python",
+      "version": "3.12.3-embed",
+      "build_system": "custom",
+      "deps": [
+        "libffi"
+      ],
+      "commands": [
+        "set -eu; ver=3.12.3; cache=${ROOT}/out/source-cache/python-embed/python-${ver}-embed-amd64.zip; mkdir -p \"$(dirname \"$cache\")\"; if [ ! -s \"$cache\" ]; then curl -fL --retry 5 --retry-delay 2 --connect-timeout 20 --max-time 900 -o \"$cache.tmp\" \"https://www.python.org/ftp/python/${ver}/python-${ver}-embed-amd64.zip\" && mv \"$cache.tmp\" \"$cache\"; fi; rm -rf ${ROOT}/out/build/python-embed; mkdir -p ${ROOT}/out/build/python-embed ${DESTDIR}/mingw64/bin ${DESTDIR}/mingw64/share/doc/python; unzip -q \"$cache\" -d ${ROOT}/out/build/python-embed; cp -a ${ROOT}/out/build/python-embed/. ${DESTDIR}/mingw64/bin/; rm -f ${DESTDIR}/mingw64/bin/libffi-8.dll; cp ${DESTDIR}/mingw64/bin/python.exe ${DESTDIR}/mingw64/bin/python3.exe; cp ${DESTDIR}/mingw64/bin/LICENSE.txt ${DESTDIR}/mingw64/share/doc/python/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "meson",
+      "source": "meson",
+      "version_package": "meson",
+      "build_system": "custom",
+      "deps": [
+        "python",
+        "ninja"
+      ],
+      "commands": [
+        "rm -rf ${ROOT}/out/build/meson-pyz && mkdir -p ${ROOT}/out/build/meson-pyz ${DESTDIR}/mingw64/bin ${DESTDIR}/mingw64/share/doc/meson",
+        "cp meson.py ${ROOT}/out/build/meson-pyz/__main__.py && cp -a mesonbuild ${ROOT}/out/build/meson-pyz/",
+        "cd ${ROOT}/out/build/meson-pyz && zip -qr ${DESTDIR}/mingw64/bin/meson.pyz __main__.py mesonbuild",
+        "x86_64-w64-mingw32-gcc -O2 -municode -o ${DESTDIR}/mingw64/bin/meson.exe ${ROOT}/ports/native-sdk/meson-launcher.c",
+        "cp COPYING ${DESTDIR}/mingw64/share/doc/meson/"
+      ]
+    },
+    {
+      "name": "busybox-w32",
+      "version": "1.38.0-FRP-6075-g169694ebd",
+      "build_system": "custom",
+      "commands": [
+        "set -eu; unset CPPFLAGS CFLAGS CXXFLAGS LDFLAGS PKG_CONFIG PKG_CONFIG_LIBDIR PKG_CONFIG_SYSROOT_DIR; tag=FRP-6075-g169694ebd; repo=${ROOT}/out/source-cache/busybox-w32/$tag; if [ ! -d \"$repo/.git\" ]; then rm -rf \"$repo\" && git clone --depth 1 --branch \"$tag\" https://github.com/rmyorston/busybox-w32.git \"$repo\"; fi; rm -rf ${ROOT}/out/build/busybox-w32; cp -a \"$repo\" ${ROOT}/out/build/busybox-w32; make -C ${ROOT}/out/build/busybox-w32 mingw64u_defconfig; make -C ${ROOT}/out/build/busybox-w32 -j${JOBS}; mkdir -p ${DESTDIR}/mingw64/bin ${DESTDIR}/mingw64/share/doc/busybox-w32; cp ${ROOT}/out/build/busybox-w32/busybox.exe ${DESTDIR}/mingw64/bin/busybox.exe; cp ${ROOT}/out/build/busybox-w32/busybox.exe ${DESTDIR}/mingw64/bin/sh.exe; cp ${ROOT}/out/build/busybox-w32/busybox.exe ${DESTDIR}/mingw64/bin/bash.exe; cp ${ROOT}/out/build/busybox-w32/LICENSE ${ROOT}/out/build/busybox-w32/README.md ${DESTDIR}/mingw64/share/doc/busybox-w32/"
+      ]
+    },
+    {
+      "name": "make",
+      "source": "make-dfsg",
+      "version_package": "make",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "commands": [
+        "rm -rf ${ROOT}/out/build/make-w32 && mkdir -p ${ROOT}/out/build/make-w32/src && cp src/config.h.W32 ${ROOT}/out/build/make-w32/src/config.h && make -f Basic.mk MAKE_HOST=Windows32 TOOLCHAIN=gcc TARGET_TYPE=release OUTDIR=${ROOT}/out/build/make-w32/ CC=x86_64-w64-mingw32-gcc LD=x86_64-w64-mingw32-gcc CPPFLAGS='-DWINDOWS32 -DWIN32' w32_SOURCES='src/w32/pathstuff.c src/w32/w32os.c src/w32/compat/posixfcn.c src/w32/subproc/misc.c src/w32/subproc/sub_proc.c src/w32/subproc/w32err.c' 'MKDIR.cmd=mkdir -p $1' 'RM.cmd=rm -f $1' 'CP.cmd=cp $1 $2' -j${JOBS}",
+        "mkdir -p ${DESTDIR}/mingw64/bin ${DESTDIR}/mingw64/share/doc/make",
+        "cp ${ROOT}/out/build/make-w32/gnumake.exe ${DESTDIR}/mingw64/bin/make.exe",
+        "cp ${ROOT}/out/build/make-w32/gnumake.exe ${DESTDIR}/mingw64/bin/gnumake.exe",
+        "cp COPYING README README.W32 ${DESTDIR}/mingw64/share/doc/make/"
+      ]
+    },
+    {
+      "name": "binutils",
+      "source": "binutils",
+      "version_package": "binutils",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib",
+        "zstd"
+      ],
+      "commands": [
+        "src=$PWD; build=${ROOT}/out/build/binutils; rm -rf \"$build\"/*; cd \"$build\" && \"$src/configure\" --build=${BUILD_TRIPLET} --host=x86_64-w64-mingw32 --target=x86_64-w64-mingw32 --prefix=/mingw64 --disable-nls --disable-werror --disable-multilib --with-system-zlib --with-zstd",
+        "make -C ${ROOT}/out/build/binutils -j${JOBS}",
+        "make -C ${ROOT}/out/build/binutils DESTDIR=${DESTDIR} install",
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
+      ]
+    },
+    {
+      "name": "gmp",
+      "source": "gmp",
+      "version_package": "libgmp-dev",
+      "build_system": "autotools",
+      "patches": [
+        "ports/native-sdk/patches/0001-gmp-dfsg-drop-generated-doc-makefile.patch"
+      ],
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--enable-shared",
+        "--disable-static",
+        "--disable-assembly",
+        "--enable-cxx"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ],
+      "post_install": [
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
+      ]
+    },
+    {
+      "name": "mpfr",
+      "source": "mpfr4",
+      "version_package": "libmpfr-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "gmp"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--with-gmp=${ROOT}/out/sysroot/mingw64",
+        "--enable-shared",
+        "--enable-static"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ],
+      "post_install": [
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
+      ]
+    },
+    {
+      "name": "mpc",
+      "source": "mpclib3",
+      "version_package": "libmpc-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "gmp",
+        "mpfr"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--with-gmp=${ROOT}/out/sysroot/mingw64",
+        "--with-mpfr=${ROOT}/out/sysroot/mingw64",
+        "--enable-shared",
+        "--enable-static"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ],
+      "post_install": [
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
+      ]
+    },
+    {
+      "name": "isl",
+      "source": "isl",
+      "version_package": "libisl-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "gmp"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--with-gmp-prefix=${ROOT}/out/sysroot/mingw64",
+        "--enable-shared",
+        "--enable-static"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ],
+      "post_install": [
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
+      ]
+    },
+    {
+      "name": "zstd",
+      "source": "libzstd",
+      "version_package": "libzstd-dev",
+      "build_system": "cmake",
+      "source_subdir": "build/cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DZSTD_BUILD_PROGRAMS=OFF",
+        "-DZSTD_BUILD_TESTS=OFF",
+        "-DZSTD_BUILD_CONTRIB=OFF",
+        "-DZSTD_BUILD_STATIC=ON",
+        "-DZSTD_BUILD_SHARED=ON"
+      ]
+    },
+    {
+      "name": "gcc",
+      "source": "gcc-13",
+      "version_package": "gcc-13",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime",
+        "binutils",
+        "gmp",
+        "mpfr",
+        "mpc",
+        "isl",
+        "zlib",
+        "zstd"
+      ],
+      "commands": [
+        "src=$PWD; build=${ROOT}/out/build/gcc; upstream=${ROOT}/out/build/gcc-src; rm -rf \"$build\" \"$upstream\"; mkdir -p \"$build\" \"$upstream\"; tar -C \"$upstream\" --strip-components=1 -xf \"$src/gcc-13.3.0.tar.xz\"; cd \"$build\" && \"$upstream/configure\" --build=${BUILD_TRIPLET} --host=x86_64-w64-mingw32 --target=x86_64-w64-mingw32 --prefix=/mingw64 --with-local-prefix=/mingw64 --disable-bootstrap --disable-nls --disable-multilib --disable-win32-registry --enable-languages=c,c++ --enable-shared --enable-threads=win32 --enable-libstdcxx --with-system-zlib --with-gmp=${ROOT}/out/sysroot/mingw64 --with-mpfr=${ROOT}/out/sysroot/mingw64 --with-mpc=${ROOT}/out/sysroot/mingw64 --with-isl=${ROOT}/out/sysroot/mingw64 --with-zstd=${ROOT}/out/sysroot/mingw64",
+        "make -C ${ROOT}/out/build/gcc -j${JOBS}",
+        "make -C ${ROOT}/out/build/gcc DESTDIR=${DESTDIR} install",
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
+      ]
+    },
+    {
       "name": "vala",
       "source": "vala",
       "version_package": "valac",
@@ -92,6 +383,9 @@
         "INTROSPECTION_SCANNER=${ROOT}/tools/ooblerg-g-ir-scanner",
         "INTROSPECTION_COMPILER=/usr/bin/g-ir-compiler"
       ],
+      "pre_build": [
+        "perl -0pi -e 's#^INTROSPECTION_COMPILER = .*#INTROSPECTION_COMPILER = /usr/bin/g-ir-compiler#m; s#^INTROSPECTION_GENERATE = .*#INTROSPECTION_GENERATE = /usr/bin/g-ir-generate#m; s#^INTROSPECTION_MAKEFILE = .*#INTROSPECTION_MAKEFILE = /usr/share/gobject-introspection-1.0/Makefile.introspection#m; s#^INTROSPECTION_SCANNER = .*#INTROSPECTION_SCANNER = ${ROOT}/tools/ooblerg-g-ir-scanner#m' gee/Makefile"
+      ],
       "make": [
         "make",
         "-j${JOBS}",
@@ -137,6 +431,607 @@
       ]
     },
     {
+      "name": "gstreamer",
+      "source": "gstreamer1.0",
+      "version_package": "libgstreamer1.0-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "zlib"
+      ],
+      "meson_options": [
+        "-Dintrospection=enabled",
+        "-Dtests=disabled",
+        "-Dexamples=disabled",
+        "-Dbenchmarks=disabled",
+        "-Dtools=enabled",
+        "-Ddoc=disabled",
+        "-Dnls=disabled",
+        "-Dcheck=disabled",
+        "-Dlibunwind=disabled",
+        "-Dlibdw=disabled",
+        "-Ddbghelp=disabled",
+        "-Dptp-helper=disabled",
+        "-Dptp-helper-permissions=none"
+      ]
+    },
+    {
+      "name": "gst-plugins-base",
+      "source": "gst-plugins-base1.0",
+      "version_package": "libgstreamer-plugins-base1.0-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "gstreamer",
+        "glib-introspection",
+        "zlib",
+        "libpng",
+        "jpeg",
+        "pango"
+      ],
+      "meson_options": [
+        "--auto-features=disabled",
+        "-Dintrospection=enabled",
+        "-Dtests=disabled",
+        "-Dexamples=disabled",
+        "-Dtools=enabled",
+        "-Ddoc=disabled",
+        "-Dnls=disabled",
+        "-Dorc=disabled",
+        "-Dadder=enabled",
+        "-Dapp=enabled",
+        "-Daudioconvert=enabled",
+        "-Daudiomixer=enabled",
+        "-Daudiorate=enabled",
+        "-Daudioresample=enabled",
+        "-Daudiotestsrc=enabled",
+        "-Dcompositor=enabled",
+        "-Ddebugutils=enabled",
+        "-Ddsd=enabled",
+        "-Dencoding=enabled",
+        "-Dgio=enabled",
+        "-Dgio-typefinder=enabled",
+        "-Doverlaycomposition=enabled",
+        "-Dpango=enabled",
+        "-Dpbtypes=enabled",
+        "-Dplayback=enabled",
+        "-Drawparse=enabled",
+        "-Dsubparse=enabled",
+        "-Dtcp=enabled",
+        "-Dtypefind=enabled",
+        "-Dvideoconvertscale=enabled",
+        "-Dvideorate=enabled",
+        "-Dvideotestsrc=enabled",
+        "-Dvolume=enabled"
+      ]
+    },
+    {
+      "name": "gst-plugins-good",
+      "source": "gst-plugins-good1.0",
+      "version_package": "gstreamer1.0-plugins-good",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "gstreamer",
+        "gst-plugins-base",
+        "glib-introspection",
+        "cairo",
+        "gdk-pixbuf",
+        "jpeg",
+        "libpng",
+        "libsoup3",
+        "libxml2"
+      ],
+      "meson_options": [
+        "--auto-features=disabled",
+        "-Dintrospection=enabled",
+        "-Dtests=disabled",
+        "-Dexamples=disabled",
+        "-Ddoc=disabled",
+        "-Dnls=disabled",
+        "-Dorc=disabled",
+        "-Dalpha=enabled",
+        "-Dapetag=enabled",
+        "-Daudiofx=enabled",
+        "-Daudioparsers=enabled",
+        "-Dauparse=enabled",
+        "-Dautodetect=enabled",
+        "-Davi=enabled",
+        "-Dcairo=enabled",
+        "-Dcutter=enabled",
+        "-Ddebugutils=enabled",
+        "-Ddeinterlace=enabled",
+        "-Ddirectsound=enabled",
+        "-Ddtmf=enabled",
+        "-Deffectv=enabled",
+        "-Dequalizer=enabled",
+        "-Dflv=enabled",
+        "-Dflx=enabled",
+        "-Dgdk-pixbuf=enabled",
+        "-Dgoom=enabled",
+        "-Dgoom2k1=enabled",
+        "-Dicydemux=enabled",
+        "-Did3demux=enabled",
+        "-Dimagefreeze=enabled",
+        "-Dinterleave=enabled",
+        "-Disomp4=enabled",
+        "-Djpeg=enabled",
+        "-Djpegformat=enabled",
+        "-Dlaw=enabled",
+        "-Dlevel=enabled",
+        "-Dmatroska=enabled",
+        "-Dmonoscope=enabled",
+        "-Dmultifile=enabled",
+        "-Dmultipart=enabled",
+        "-Dpng=enabled",
+        "-Dreplaygain=enabled",
+        "-Drtp=enabled",
+        "-Drtpmanager=enabled",
+        "-Drtsp=enabled",
+        "-Dshapewipe=enabled",
+        "-Dsmpte=enabled",
+        "-Dsoup=enabled",
+        "-Dsoup-version=3",
+        "-Dspectrum=enabled",
+        "-Dudp=enabled",
+        "-Dvideobox=enabled",
+        "-Dvideocrop=enabled",
+        "-Dvideofilter=enabled",
+        "-Dvideomixer=enabled",
+        "-Dwavenc=enabled",
+        "-Dwaveform=enabled",
+        "-Dwavparse=enabled",
+        "-Dxingmux=enabled",
+        "-Dy4m=enabled"
+      ]
+    },
+    {
+      "name": "directxmath",
+      "version": "jun2026",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "commands": [
+        "cache=${ROOT}/out/source-cache/directxmath/93e6399d6d15e1e57f80b5cea04d5a8eb892d693; mkdir -p \"$cache\"; archive=\"$cache/directxmath-93e6399d6d15e1e57f80b5cea04d5a8eb892d693.tar.gz\"; if [ ! -f \"$archive\" ]; then curl -fL --retry 5 --retry-delay 2 --connect-timeout 20 --max-time 900 -o \"$archive.tmp\" https://github.com/microsoft/DirectXMath/archive/93e6399d6d15e1e57f80b5cea04d5a8eb892d693.tar.gz && mv \"$archive.tmp\" \"$archive\"; fi; printf '%s  %s\\n' 5df86719dff4f5c10418de4ed3b2e8a77e41ccf8aeab3f74d2810a45e0935df7 \"$archive\" | sha256sum -c -",
+        "cache=${ROOT}/out/source-cache/directxmath/93e6399d6d15e1e57f80b5cea04d5a8eb892d693; archive=\"$cache/directxmath-93e6399d6d15e1e57f80b5cea04d5a8eb892d693.tar.gz\"; extract=${ROOT}/out/build/directxmath-extract; rm -rf \"$extract\"; mkdir -p \"$extract\" ${DESTDIR}/mingw64/include ${DESTDIR}/mingw64/share/licenses/directxmath; tar -xzf \"$archive\" -C \"$extract\"; cp \"$extract\"/DirectXMath-93e6399d6d15e1e57f80b5cea04d5a8eb892d693/Inc/* ${DESTDIR}/mingw64/include/; cp \"$extract\"/DirectXMath-93e6399d6d15e1e57f80b5cea04d5a8eb892d693/LICENSE ${DESTDIR}/mingw64/share/licenses/directxmath/LICENSE",
+        "mkdir -p ${DESTDIR}/mingw64/lib/pkgconfig; printf '%s\\n' 'prefix=/mingw64' 'includedir=${prefix}/include' '' 'Name: DirectXMath' 'Description: DirectXMath header-only SIMD math library' 'Version: jun2026' 'Cflags: -I${includedir}' > ${DESTDIR}/mingw64/lib/pkgconfig/directxmath.pc; cp ${DESTDIR}/mingw64/lib/pkgconfig/directxmath.pc ${DESTDIR}/mingw64/lib/pkgconfig/DirectXMath.pc"
+      ]
+    },
+    {
+      "name": "gst-plugins-bad",
+      "source": "gst-plugins-bad1.0",
+      "version_package": "gstreamer1.0-plugins-bad",
+      "build_system": "meson",
+      "patches": [
+        "ports/gstreamer-windows/patches/0001-gst-plugins-bad-mingw-d3d11-wasapi2.patch"
+      ],
+      "deps": [
+        "mingw-w64-runtime",
+        "directxmath",
+        "gstreamer",
+        "gst-plugins-base",
+        "gst-plugins-good",
+        "glib-introspection",
+        "cairo",
+        "libpng",
+        "libxml2",
+        "pango",
+        "webp"
+      ],
+      "meson_options": [
+        "--auto-features=disabled",
+        "-Dintrospection=enabled",
+        "-Dtests=disabled",
+        "-Dexamples=disabled",
+        "-Dtools=enabled",
+        "-Ddoc=disabled",
+        "-Dnls=disabled",
+        "-Dorc=disabled",
+        "-Daccurip=enabled",
+        "-Dadpcmdec=enabled",
+        "-Dadpcmenc=enabled",
+        "-Daiff=enabled",
+        "-Dasfmux=enabled",
+        "-Daudiobuffersplit=enabled",
+        "-Daudiofxbad=enabled",
+        "-Daudiolatency=enabled",
+        "-Daudiomixmatrix=enabled",
+        "-Dautoconvert=enabled",
+        "-Dbayer=enabled",
+        "-Dcodecalpha=enabled",
+        "-Dcodectimestamper=enabled",
+        "-Dcoloreffects=enabled",
+        "-Dd3d11=enabled",
+        "-Dd3d11-hlsl-precompile=disabled",
+        "-Dd3d11-wgc=disabled",
+        "-Dd3dvideosink=enabled",
+        "-Ddebugutils=enabled",
+        "-Ddirectsound=enabled",
+        "-Ddvbsubenc=enabled",
+        "-Ddvbsuboverlay=enabled",
+        "-Ddvdspu=enabled",
+        "-Dfieldanalysis=enabled",
+        "-Dfreeverb=enabled",
+        "-Dgdp=enabled",
+        "-Dgeometrictransform=enabled",
+        "-Did3tag=enabled",
+        "-Dinsertbin=enabled",
+        "-Dinter=enabled",
+        "-Dinterlace=enabled",
+        "-Divfparse=enabled",
+        "-Divtc=enabled",
+        "-Djpegformat=enabled",
+        "-Dmpegdemux=enabled",
+        "-Dmpegpsmux=enabled",
+        "-Dmpegtsdemux=enabled",
+        "-Dmpegtsmux=enabled",
+        "-Dmxf=enabled",
+        "-Dpnm=enabled",
+        "-Drawparse=enabled",
+        "-Dsegmentclip=enabled",
+        "-Dsiren=enabled",
+        "-Dspeed=enabled",
+        "-Dsubenc=enabled",
+        "-Dtimecode=enabled",
+        "-Dvideofilters=enabled",
+        "-Dvideoparsers=enabled",
+        "-Dwasapi2=enabled",
+        "-Dwasapi=enabled",
+        "-Dwebp=enabled",
+        "-Dwin32ipc=enabled",
+        "-Dwinks=enabled",
+        "-Dwinscreencap=enabled",
+        "-Dy4m=enabled"
+      ]
+    },
+    {
+      "name": "gst-plugins-ugly",
+      "source": "gst-plugins-ugly1.0",
+      "version_package": "gstreamer1.0-plugins-ugly",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "gstreamer",
+        "gst-plugins-base",
+        "gst-plugins-good"
+      ],
+      "meson_options": [
+        "--auto-features=disabled",
+        "-Dtests=disabled",
+        "-Ddoc=disabled",
+        "-Dnls=disabled",
+        "-Dorc=disabled",
+        "-Dasfdemux=enabled",
+        "-Ddvdlpcmdec=enabled",
+        "-Ddvdsub=enabled",
+        "-Drealmedia=enabled"
+      ]
+    },
+    {
+      "name": "gdal",
+      "source": "gdal",
+      "version_package": "libgdal-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib",
+        "libpng",
+        "jpeg",
+        "tiff",
+        "sqlite",
+        "proj",
+        "expat"
+      ],
+      "cmake_options": [
+        "-DBUILD_SHARED_LIBS=ON",
+        "-DBUILD_TESTING=OFF",
+        "-DBUILD_PYTHON_BINDINGS=OFF",
+        "-DBUILD_APPS=OFF",
+        "-DGDAL_USE_EXTERNAL_LIBS=OFF",
+        "-DGDAL_BUILD_OPTIONAL_DRIVERS=OFF",
+        "-DOGR_BUILD_OPTIONAL_DRIVERS=OFF",
+        "-DGDAL_USE_ZLIB=ON",
+        "-DGDAL_USE_PNG=ON",
+        "-DGDAL_USE_JPEG=ON",
+        "-DGDAL_USE_TIFF=ON",
+        "-DGDAL_USE_SQLITE3=ON",
+        "-DGDAL_USE_PROJ=ON",
+        "-DGDAL_USE_EXPAT=ON",
+        "-DGDAL_ENABLE_DRIVER_RAW=ON",
+        "-DGDAL_ENABLE_DRIVER_AAIGRID=ON",
+        "-DGDAL_ENABLE_DRIVER_NITF=ON",
+        "-DGDAL_ENABLE_DRIVER_SRTMHGT=ON",
+        "-DGDAL_ENABLE_DRIVER_BMP=ON",
+        "-DGDAL_ENABLE_DRIVER_XYZ=ON",
+        "-DGDAL_ENABLE_DRIVER_PNG=ON",
+        "-DGDAL_ENABLE_DRIVER_JPEG=ON",
+        "-DGDAL_ENABLE_DRIVER_RASTERLITE=ON",
+        "-DOGR_ENABLE_DRIVER_CSV=ON",
+        "-DOGR_ENABLE_DRIVER_GML=ON",
+        "-DOGR_ENABLE_DRIVER_GPX=ON",
+        "-DOGR_ENABLE_DRIVER_SQLITE=ON",
+        "-DOGR_ENABLE_DRIVER_GPKG=ON"
+      ]
+    },
+    {
+      "name": "webkitgtk",
+      "source": "webkit2gtk",
+      "version_package": "libwebkitgtk-6.0-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime",
+        "gtk4",
+        "libsoup3",
+        "icu",
+        "libxml2",
+        "libgcrypt",
+        "libtasn1",
+        "harfbuzz",
+        "webp"
+      ],
+      "overlays": [
+        "ports/webkitgtkwin/overlay"
+      ],
+      "patches": [
+        "ports/webkitgtkwin/patches/0001-webkitgtkwin-bootstrap.patch",
+        "ports/webkitgtkwin/patches/0002-webkitgtkwin-avoid-gio-unix-link.patch",
+        "ports/webkitgtkwin/patches/0003-webkitgtkwin-mingw-wtf-compat.patch",
+        "ports/webkitgtkwin/patches/0004-webkitgtkwin-mingw-windows-backend.patch",
+        "ports/webkitgtkwin/patches/0006-webkitgtkwin-jsc-extractor-exports.patch",
+        "ports/webkitgtkwin/patches/0007-webkitgtkwin-jsc-mingw-build.patch",
+        "ports/webkitgtkwin/patches/0008-webkitgtkwin-jsc-jsclass-no-unify.patch",
+        "ports/webkitgtkwin/patches/0009-webkitgtkwin-jsc-mingw-api-ice-workarounds.patch",
+        "ports/webkitgtkwin/patches/0010-webkitgtkwin-wtf-shell-and-pal-minGW.patch",
+        "ports/webkitgtkwin/patches/0011-webkitgtkwin-webcore-mingw-consumer-fixes.patch",
+        "ports/webkitgtkwin/patches/0012-webkitgtkwin-webcore-win-font-backend.patch",
+        "ports/webkitgtkwin/patches/0013-webkitgtkwin-webcore-windows-cairo-font-gates.patch",
+        "ports/webkitgtkwin/patches/0014-webkitgtkwin-webcore-mingw-font-api-drift.patch",
+        "ports/webkitgtkwin/patches/0015-webkitgtkwin-webcore-mingw-ice-workarounds.patch",
+        "ports/webkitgtkwin/patches/0016-webkitgtkwin-wtf-mingw-libintl-printstream.patch",
+        "ports/webkitgtkwin/patches/0017-webkitgtkwin-webcore-mingw-accessibility-bootstrap.patch",
+        "ports/webkitgtkwin/patches/0018-webkitgtkwin-webcore-eventloop-include.patch",
+        "ports/webkitgtkwin/patches/0019-webkitgtkwin-webcore-win-shared-memory.patch",
+        "ports/webkitgtkwin/patches/0020-webkitgtkwin-webcore-null-egl-and-woff.patch",
+        "ports/webkitgtkwin/patches/0021-webkitgtkwin-webcore-glib-network-fallbacks.patch",
+        "ports/webkitgtkwin/patches/0022-webkitgtkwin-cmake-windows-gtk-and-testsupport.patch",
+        "ports/webkitgtkwin/patches/0023-webkitgtkwin-webkit-path-macros-and-testsupport-all.patch",
+        "ports/webkitgtkwin/patches/0024-webkitgtkwin-webkit-ipc-unix-guards.patch",
+        "ports/webkitgtkwin/patches/0025-webkitgtkwin-webcore-stage-font-memory-header.patch",
+        "ports/webkitgtkwin/patches/0026-webkitgtkwin-wtf-stage-unix-fd-header.patch",
+        "ports/webkitgtkwin/patches/0027-webkitgtkwin-webkit-font-ipc-os-windows-guards.patch",
+        "ports/webkitgtkwin/patches/0028-webkitgtkwin-webkit-win32handle-ipc-coder.patch",
+        "ports/webkitgtkwin/patches/0029-webkitgtkwin-webkit-ipcevent-os-windows.patch",
+        "ports/webkitgtkwin/patches/0030-webkitgtkwin-webkit-logfont-and-null-unixfd-coder.patch",
+        "ports/webkitgtkwin/patches/0031-webkitgtkwin-sharedmemory-win32handle-serializer.patch",
+        "ports/webkitgtkwin/patches/0032-webkitgtkwin-network-cache-glib-windows-guards.patch",
+        "ports/webkitgtkwin/patches/0033-webkitgtkwin-wkapicast-gtk-win-guard.patch",
+        "ports/webkitgtkwin/patches/0034-webkitgtkwin-gtk4-and-auxiliary-unix-guards.patch"
+      ],
+      "cmake_options": [
+        "-DPORT=GTK",
+        "-DUSE_GTK4=ON",
+        "-DENABLE_INTROSPECTION=ON",
+        "-DENABLE_DOCUMENTATION=OFF",
+        "-DENABLE_MINIBROWSER=OFF",
+        "-DENABLE_WEBDRIVER=OFF",
+        "-DENABLE_API_TESTS=OFF",
+        "-DENABLE_LAYOUT_TESTS=OFF",
+        "-DENABLE_PDFJS=OFF",
+        "-DENABLE_DRAG_SUPPORT=OFF",
+        "-DENABLE_SHAREABLE_RESOURCE=OFF",
+        "-DENABLE_BUBBLEWRAP_SANDBOX=OFF",
+        "-DENABLE_JOURNALD_LOG=OFF",
+        "-DENABLE_GAMEPAD=OFF",
+        "-DENABLE_SPELLCHECK=OFF",
+        "-DENABLE_SPEECH_SYNTHESIS=OFF",
+        "-DENABLE_VIDEO=OFF",
+        "-DENABLE_WEB_AUDIO=OFF",
+        "-DENABLE_MEDIA_STREAM=OFF",
+        "-DENABLE_MEDIA_RECORDER=OFF",
+        "-DENABLE_MEDIA_SESSION=OFF",
+        "-DENABLE_MEDIA_SOURCE=OFF",
+        "-DENABLE_WEB_RTC=OFF",
+        "-DENABLE_WEB_CODECS=OFF",
+        "-DENABLE_WEBGL=OFF",
+        "-DENABLE_WEBGPU=OFF",
+        "-DENABLE_WEBXR=OFF",
+        "-DENABLE_MATHML=OFF",
+        "-DENABLE_XSLT=OFF",
+        "-DUSE_GSTREAMER=OFF",
+        "-DUSE_GSTREAMER_GL=OFF",
+        "-DUSE_GSTREAMER_WEBRTC=OFF",
+        "-DUSE_LIBDRM=OFF",
+        "-DUSE_GBM=OFF",
+        "-DENABLE_GPU_PROCESS=OFF",
+        "-DENABLE_QUARTZ_TARGET=OFF",
+        "-DENABLE_WAYLAND_TARGET=OFF",
+        "-DENABLE_X11_TARGET=OFF",
+        "-DUSE_LIBSECRET=OFF",
+        "-DUSE_LIBHYPHEN=OFF",
+        "-DUSE_JPEGXL=OFF",
+        "-DUSE_AVIF=OFF",
+        "-DUSE_LCMS=OFF",
+        "-DUSE_WOFF2=OFF",
+        "-DUSE_LIBBACKTRACE=OFF",
+        "-DUSE_SKIA=OFF",
+        "-DUSE_SKIA_ENCODERS=OFF",
+        "-DUSE_SKIA_OPENTYPE_SVG=OFF",
+        "-DUSE_SYSTEM_MALLOC=ON",
+        "-DUSE_SYSPROF_CAPTURE=OFF",
+        "-DUSE_SYSTEM_SYSPROF_CAPTURE=OFF",
+        "-DUSE_THIN_ARCHIVES=OFF",
+        "-DENABLE_JIT=OFF",
+        "-DENABLE_DFG_JIT=OFF",
+        "-DENABLE_FTL_JIT=OFF",
+        "-DENABLE_C_LOOP=ON",
+        "-DENABLE_WEBASSEMBLY=OFF",
+        "-DENABLE_WEBASSEMBLY_BBQJIT=OFF",
+        "-DENABLE_WEBASSEMBLY_OMGJIT=OFF",
+        "-DENABLE_SAMPLING_PROFILER=OFF",
+        "-DENABLE_REMOTE_INSPECTOR=OFF",
+        "-DENABLE_JAVASCRIPT_SHELL=OFF",
+        "-DGI_SCANNER_EXE=${ROOT}/tools/ooblerg-g-ir-scanner",
+        "-DGI_COMPILER_EXE=/usr/bin/g-ir-compiler"
+      ]
+    },
+    {
+      "name": "icu",
+      "source": "icu",
+      "version_package": "libicu-dev",
+      "build_system": "custom",
+      "source_subdir": "source",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "commands": [
+        "rm -rf ../build-native ../build-target",
+        "mkdir -p ../build-native ../build-target",
+        "cd ../build-native && env -u CHOST -u PKG_CONFIG_LIBDIR -u PKG_CONFIG_SYSROOT_DIR CC=gcc CXX=g++ AR=ar RANLIB=ranlib CPPFLAGS= CFLAGS= CXXFLAGS= LDFLAGS= ../source/configure --prefix=$(pwd)/install --disable-samples --disable-tests --disable-extras",
+        "cd ../build-native && make -j${JOBS}",
+        "cd ../build-target && ../source/configure --host=x86_64-w64-mingw32 --build=${BUILD_TRIPLET} --prefix=/mingw64 --with-cross-build=$(cd ../build-native && pwd) --disable-samples --disable-tests --disable-extras --enable-shared --disable-static",
+        "cd ../build-target && make -j${JOBS}",
+        "cd ../build-target && make DESTDIR=${DESTDIR} install"
+      ]
+    },
+    {
+      "name": "libxml2",
+      "source": "libxml2",
+      "version_package": "libxml2-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib"
+      ],
+      "pre_configure": [
+        "make distclean >/dev/null 2>&1 || true",
+        "find . \\( -name aclocal.m4 -o -name configure -o -name Makefile.in \\) -exec touch {} +"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--without-python",
+        "--without-lzma",
+        "--without-readline",
+        "--without-iconv",
+        "--with-zlib"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "libgpg-error",
+      "source": "libgpg-error",
+      "version_package": "libgpg-error-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--disable-doc",
+        "--disable-languages"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "libgcrypt",
+      "source": "libgcrypt20",
+      "version_package": "libgcrypt20-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "libgpg-error"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--disable-doc",
+        "--disable-static",
+        "--enable-shared",
+        "--with-gpg-error-prefix=/mingw64"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "libtasn1",
+      "source": "libtasn1-6",
+      "version_package": "libtasn1-6-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--disable-doc"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "webp",
+      "source": "libwebp",
+      "version_package": "libwebp-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime",
+        "jpeg",
+        "libpng",
+        "tiff"
+      ],
+      "cmake_options": [
+        "-DBUILD_SHARED_LIBS=ON",
+        "-DWEBP_BUILD_ANIM_UTILS=OFF",
+        "-DWEBP_BUILD_CWEBP=OFF",
+        "-DWEBP_BUILD_DWEBP=OFF",
+        "-DWEBP_BUILD_EXTRAS=OFF",
+        "-DWEBP_BUILD_GIF2WEBP=OFF",
+        "-DWEBP_BUILD_IMG2WEBP=OFF",
+        "-DWEBP_BUILD_VWEBP=OFF",
+        "-DWEBP_BUILD_WEBPINFO=OFF",
+        "-DWEBP_BUILD_WEBPMUX=OFF",
+        "-DWEBP_ENABLE_SIMD=ON"
+      ]
+    },
+    {
       "name": "glib",
       "source": "glib2.0",
       "version_package": "libglib2.0-dev",
@@ -157,6 +1052,9 @@
         "-Dselinux=disabled",
         "-Dxattr=false",
         "-Dlibmount=disabled"
+      ],
+      "post_install": [
+        "cp ${DESTDIR}/mingw64/lib/pkgconfig/gio-windows-2.0.pc ${DESTDIR}/mingw64/lib/pkgconfig/gio-win32-2.0.pc"
       ]
     },
     {
@@ -197,6 +1095,9 @@
         "-Dlibmount=disabled"
       ],
       "post_install": [
+        "cp ${ROOT}/tools/win32-1.0.gir ${DESTDIR}/mingw64/share/gir-1.0/win32-1.0.gir",
+        "mkdir -p ${DESTDIR}/mingw64/lib/girepository-1.0",
+        "/usr/bin/g-ir-compiler ${ROOT}/tools/win32-1.0.gir -o ${DESTDIR}/mingw64/lib/girepository-1.0/win32-1.0.typelib",
         "find ${DESTDIR}/mingw64 -mindepth 1 -maxdepth 1 ! -name share ! -name lib -exec rm -rf {} +",
         "find ${DESTDIR}/mingw64/share -mindepth 1 -maxdepth 1 ! -name gir-1.0 -exec rm -rf {} +",
         "find ${DESTDIR}/mingw64/lib -mindepth 1 -maxdepth 1 ! -name girepository-1.0 -exec rm -rf {} +"
@@ -362,6 +1263,8 @@
         "--build=${BUILD_TRIPLET}",
         "--prefix=/mingw64",
         "--disable-readline",
+        "--enable-rtree",
+        "CFLAGS=-DSQLITE_ENABLE_COLUMN_METADATA",
         "BUILD_CC=gcc",
         "config_TARGET_EXEEXT=.exe"
       ],
@@ -395,6 +1298,24 @@
         "-Dpsl_file=/usr/share/publicsuffix/public_suffix_list.dat",
         "-Dpsl_testfile=/usr/share/doc/publicsuffix/examples/test_psl.txt",
         "-Ddocs=false"
+      ]
+    },
+    {
+      "name": "proj",
+      "source": "proj",
+      "version_package": "libproj-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime",
+        "sqlite",
+        "tiff"
+      ],
+      "cmake_options": [
+        "-DBUILD_SHARED_LIBS=ON",
+        "-DBUILD_TESTING=OFF",
+        "-DBUILD_APPS=OFF",
+        "-DENABLE_CURL=OFF",
+        "-DENABLE_TIFF=ON"
       ]
     },
     {
@@ -525,11 +1446,13 @@
         "mingw-w64-runtime",
         "glib",
         "glib-introspection",
-        "freetype"
+        "freetype",
+        "icu"
       ],
       "meson_options": [
         "-Dintrospection=enabled",
         "-Dgobject=enabled",
+        "-Dicu=enabled",
         "-Dtests=disabled",
         "-Ddocs=disabled",
         "-Dbenchmark=disabled"

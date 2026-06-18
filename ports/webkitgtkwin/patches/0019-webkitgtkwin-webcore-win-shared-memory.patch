@@ -1,0 +1,155 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: add a Win32 SharedMemory backend
+
+GTK and WPE normally use Unix domain sockets, but GTK-on-Windows must not pick
+UnixFileDescriptor-backed shared memory. Keep the platform-independent
+SharedMemory interface, leave the Unix backend in place, and add a Win32
+backend that carries duplicated HANDLEs through WTF::Win32Handle.
+---
+ Source/WTF/wtf/PlatformUse.h                  |  2 +-
+ Source/WebCore/PlatformGTK.cmake              |  1 +
+ Source/WebCore/platform/win/SharedMemoryWin.cpp | 107 ++++++++++++++++++
+ 3 files changed, 109 insertions(+), 1 deletion(-)
+
+diff --git a/Source/WTF/wtf/PlatformUse.h b/Source/WTF/wtf/PlatformUse.h
+index 537936a6f1a2..08f4bf9c3b33 100644
+--- a/Source/WTF/wtf/PlatformUse.h
++++ b/Source/WTF/wtf/PlatformUse.h
+@@ -179,7 +179,7 @@
+ #define USE_METAL 1
+ #endif
+ 
+-#if PLATFORM(GTK) || PLATFORM(WPE)
++#if (PLATFORM(GTK) || PLATFORM(WPE)) && !OS(WINDOWS)
+ #define USE_UNIX_DOMAIN_SOCKETS 1
+ #endif
+ 
+diff --git a/Source/WebCore/PlatformGTK.cmake b/Source/WebCore/PlatformGTK.cmake
+index 11d87560a607..e40319f345e7 100644
+--- a/Source/WebCore/PlatformGTK.cmake
++++ b/Source/WebCore/PlatformGTK.cmake
+@@ -27,6 +27,7 @@ if (USE_CAIRO)
+             platform/graphics/win/cairo/FontCacheWinCairo.cpp
+             platform/graphics/win/cairo/FontCustomPlatformDataWinCairo.cpp
+             platform/graphics/win/cairo/FontPlatformDataWinCairo.cpp
++            platform/win/SharedMemoryWin.cpp
+             platform/win/BString.cpp
+             platform/win/WebCoreInstanceHandle.cpp
+         )
+diff --git a/Source/WebCore/platform/win/SharedMemoryWin.cpp b/Source/WebCore/platform/win/SharedMemoryWin.cpp
+new file mode 100644
+index 000000000000..33e3c156e7bc
+--- /dev/null
++++ b/Source/WebCore/platform/win/SharedMemoryWin.cpp
+@@ -0,0 +1,107 @@
++/*
++ * Copyright (C) 2026 WebKitGTKWin Port. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
++ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS
++ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
++ * THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#include "config.h"
++#include "SharedMemory.h"
++
++#if OS(WINDOWS)
++
++#include <wtf/Assertions.h>
++#include <wtf/RefPtr.h>
++#include <wtf/StdLibExtras.h>
++#include <wtf/win/Win32Handle.h>
++
++namespace WebCore {
++
++static DWORD accessModeMapView(SharedMemory::Protection protection)
++{
++    switch (protection) {
++    case SharedMemory::Protection::ReadOnly:
++        return FILE_MAP_READ;
++    case SharedMemory::Protection::ReadWrite:
++        return FILE_MAP_READ | FILE_MAP_WRITE;
++    }
++
++    ASSERT_NOT_REACHED();
++    return FILE_MAP_READ | FILE_MAP_WRITE;
++}
++
++RefPtr<SharedMemory> SharedMemory::allocate(size_t size)
++{
++    if (!size)
++        return nullptr;
++
++    ULARGE_INTEGER mappingSize;
++    mappingSize.QuadPart = size;
++
++    HANDLE mapping = ::CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, mappingSize.HighPart, mappingSize.LowPart, nullptr);
++    if (!mapping)
++        return nullptr;
++
++    void* data = ::MapViewOfFile(mapping, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, size);
++    if (!data) {
++        ::CloseHandle(mapping);
++        return nullptr;
++    }
++
++    RefPtr<SharedMemory> instance = adoptRef(new SharedMemory());
++    instance->m_data = data;
++    instance->m_handle = Win32Handle::adopt(mapping);
++    instance->m_size = size;
++    return instance;
++}
++
++RefPtr<SharedMemory> SharedMemory::map(Handle&& handle, Protection protection, CopyOnWrite copyOnWrite)
++{
++    ASSERT_UNUSED(copyOnWrite, copyOnWrite == CopyOnWrite::No);
++
++    void* data = ::MapViewOfFile(handle.m_handle.get(), accessModeMapView(protection), 0, 0, handle.size());
++    if (!data)
++        return nullptr;
++
++    RefPtr<SharedMemory> instance = adoptRef(new SharedMemory());
++    instance->m_data = data;
++    instance->m_handle = WTF::move(handle.m_handle);
++    instance->m_size = handle.size();
++    return instance;
++}
++
++SharedMemory::~SharedMemory()
++{
++    ::UnmapViewOfFile(m_data);
++}
++
++auto SharedMemory::createHandle(Protection) -> std::optional<Handle>
++{
++    Win32Handle duplicate { m_handle };
++    if (!duplicate)
++        return std::nullopt;
++
++    return { Handle(WTF::move(duplicate), m_size) };
++}
++
++} // namespace WebCore
++
++#endif // OS(WINDOWS)
+-- 
+2.43.0

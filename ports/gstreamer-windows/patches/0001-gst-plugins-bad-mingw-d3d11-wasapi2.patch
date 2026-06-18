@@ -1,0 +1,947 @@
+diff --git a/gst-libs/gst/codecs/meson.build b/gst-libs/gst/codecs/meson.build
+index a4a980b..0cc0dd0 100644
+--- a/gst-libs/gst/codecs/meson.build
++++ b/gst-libs/gst/codecs/meson.build
+@@ -51,6 +51,14 @@ gstcodecs = library('gstcodecs-' + api_version,
+ 
+ library_def = {'lib': gstcodecs}
+ pkg_name = 'gstreamer-codecs-1.0'
++pkgconfig.generate(gstcodecs,
++  libraries : [gstvideo_dep, gstcodecparsers_dep],
++  variables : pkgconfig_variables,
++  subdirs : pkgconfig_subdirs,
++  name : pkg_name,
++  description : 'Codec utility library for GStreamer elements',
++)
++
+ gen_sources = []
+ if build_gir
+   gir = {
+diff --git a/gst-libs/gst/winrt/gstwinrtdevicewatcher.cpp b/gst-libs/gst/winrt/gstwinrtdevicewatcher.cpp
+index 3d6fc10..de8ed1f 100644
+--- a/gst-libs/gst/winrt/gstwinrtdevicewatcher.cpp
++++ b/gst-libs/gst/winrt/gstwinrtdevicewatcher.cpp
+@@ -31,6 +31,7 @@
+ #include <windows.foundation.h>
+ #include <wrl.h>
+ #include <wrl/wrappers/corewrappers.h>
++#include <new>
+ 
+ /* *INDENT-OFF* */
+ typedef __FITypedEventHandler_2_Windows__CDevices__CEnumeration__CDeviceWatcher_Windows__CDevices__CEnumeration__CDeviceInformation IAddedHandler;
+@@ -64,6 +65,165 @@ static void
+ gst_winrt_device_watcher_device_enumeration_stopped (GstWinRTDeviceWatcher *
+     self);
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++template <typename Handler, typename Arg>
++class DeviceWatcherHandler: public Handler
++{
++public:
++  typedef void (*Callback) (GstWinRTDeviceWatcher * watcher, Arg * arg);
++
++  DeviceWatcherHandler (GstWinRTDeviceWatcher * listener, Callback callback)
++      : ref_count_ (1), listener_ (listener), callback_ (callback)
++  {
++  }
++
++  virtual ~DeviceWatcherHandler ()
++  {
++  }
++
++  HRESULT STDMETHODCALLTYPE QueryInterface (REFIID riid, void **object) override
++  {
++    if (!object)
++      return E_POINTER;
++
++    if (IsEqualIID (riid, __uuidof (IUnknown)) ||
++        IsEqualIID (riid, __uuidof (Handler))) {
++      *object = static_cast < Handler * >(this);
++      AddRef ();
++      return S_OK;
++    }
++
++    *object = nullptr;
++    return E_NOINTERFACE;
++  }
++
++  ULONG STDMETHODCALLTYPE AddRef () override
++  {
++    return InterlockedIncrement (&ref_count_);
++  }
++
++  ULONG STDMETHODCALLTYPE Release () override
++  {
++    ULONG count = InterlockedDecrement (&ref_count_);
++    if (!count)
++      delete this;
++    return count;
++  }
++
++  HRESULT STDMETHODCALLTYPE Invoke (IDeviceWatcher * sender, Arg * arg) override
++  {
++    callback_ (listener_, arg);
++    return S_OK;
++  }
++
++private:
++  volatile LONG ref_count_;
++  GstWinRTDeviceWatcher *listener_;
++  Callback callback_;
++};
++
++template <typename Handler>
++class DeviceWatcherInspectableHandler: public Handler
++{
++public:
++  typedef void (*Callback) (GstWinRTDeviceWatcher * watcher);
++
++  DeviceWatcherInspectableHandler (GstWinRTDeviceWatcher * listener,
++      Callback callback): ref_count_ (1), listener_ (listener),
++      callback_ (callback)
++  {
++  }
++
++  virtual ~DeviceWatcherInspectableHandler ()
++  {
++  }
++
++  HRESULT STDMETHODCALLTYPE QueryInterface (REFIID riid, void **object) override
++  {
++    if (!object)
++      return E_POINTER;
++
++    if (IsEqualIID (riid, __uuidof (IUnknown)) ||
++        IsEqualIID (riid, __uuidof (Handler))) {
++      *object = static_cast < Handler * >(this);
++      AddRef ();
++      return S_OK;
++    }
++
++    *object = nullptr;
++    return E_NOINTERFACE;
++  }
++
++  ULONG STDMETHODCALLTYPE AddRef () override
++  {
++    return InterlockedIncrement (&ref_count_);
++  }
++
++  ULONG STDMETHODCALLTYPE Release () override
++  {
++    ULONG count = InterlockedDecrement (&ref_count_);
++    if (!count)
++      delete this;
++    return count;
++  }
++
++  HRESULT STDMETHODCALLTYPE Invoke (IDeviceWatcher * sender,
++      IInspectable * arg) override
++  {
++    callback_ (listener_);
++    return S_OK;
++  }
++
++private:
++  volatile LONG ref_count_;
++  GstWinRTDeviceWatcher *listener_;
++  Callback callback_;
++};
++
++template <typename Handler, typename Arg>
++static HRESULT
++make_device_watcher_handler (ComPtr < Handler > *handler,
++    GstWinRTDeviceWatcher * listener,
++    void (*callback) (GstWinRTDeviceWatcher * watcher, Arg * arg))
++{
++  DeviceWatcherHandler < Handler, Arg > *raw;
++
++  if (!handler || !listener || !callback)
++    return E_INVALIDARG;
++
++  raw = new (std::nothrow) DeviceWatcherHandler < Handler, Arg >
++      (listener, callback);
++  if (!raw)
++    return E_OUTOFMEMORY;
++
++  handler->Attach (raw);
++  raw->Release ();
++
++  return S_OK;
++}
++
++template <typename Handler>
++static HRESULT
++make_device_watcher_inspectable_handler (ComPtr < Handler > *handler,
++    GstWinRTDeviceWatcher * listener,
++    void (*callback) (GstWinRTDeviceWatcher * watcher))
++{
++  DeviceWatcherInspectableHandler < Handler > *raw;
++
++  if (!handler || !listener || !callback)
++    return E_INVALIDARG;
++
++  raw = new (std::nothrow) DeviceWatcherInspectableHandler < Handler >
++      (listener, callback);
++  if (!raw)
++    return E_OUTOFMEMORY;
++
++  handler->Attach (raw);
++  raw->Release ();
++
++  return S_OK;
++}
++#else
+ class AddedHandler
+     : public RuntimeClass<RuntimeClassFlags<ClassicCom>, IAddedHandler>
+ {
+@@ -193,6 +353,7 @@ public:
+ private:
+   GstWinRTDeviceWatcher * listener_;
+ };
++#endif
+ /* *INDENT-ON* */
+ 
+ typedef struct
+@@ -393,7 +554,12 @@ gst_winrt_device_watcher_thread_func_inner (GstWinRTDeviceWatcher * self)
+   GSource *idle_source;
+   HRESULT hr;
+   GstWinRTDeviceWatcherInner *inner = nullptr;
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  ComPtr < IDeviceInformationStatics2 > factory;
++  HSTRING device_class_selector = nullptr;
++#else
+   ComPtr < IDeviceInformationStatics > factory;
++#endif
+   ComPtr < IDeviceWatcher > watcher;
+   ComPtr < IAddedHandler > added_handler;
+   ComPtr < IUpdatedHandler > updated_handler;
+@@ -418,50 +584,102 @@ gst_winrt_device_watcher_thread_func_inner (GstWinRTDeviceWatcher * self)
+     goto run_loop;
+   }
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  hr = factory->GetAqsFilterFromDeviceClass ((DeviceClass) priv->device_class,
++      &device_class_selector);
++  if (FAILED (hr)) {
++    GST_ERROR_OBJECT (self,
++        "Failed to get device class selector, hr: 0x%x", (guint) hr);
++    goto run_loop;
++  }
++
++  hr = factory->CreateWatcherWithKindAqsFilterAndAdditionalProperties
++      (device_class_selector, nullptr, DeviceInformationKind_DeviceInterface,
++      &watcher);
++#else
+   hr = factory->CreateWatcherDeviceClass ((DeviceClass) priv->device_class,
+       &watcher);
++#endif
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  if (device_class_selector) {
++    WindowsDeleteString (device_class_selector);
++    device_class_selector = nullptr;
++  }
++#endif
+   if (FAILED (hr)) {
+     GST_ERROR_OBJECT (self,
+         "Failed to create IDeviceWatcher, hr: 0x%x", (guint) hr);
+     goto run_loop;
+   }
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  hr = make_device_watcher_handler < IAddedHandler, IDeviceInformation >
++      (&added_handler, self, gst_winrt_device_watcher_device_added);
++#else
+   hr = MakeAndInitialize < AddedHandler > (&added_handler, self);
++#endif
+   if (FAILED (hr)) {
+-    GST_ERROR_OBJECT (self, "Failed to create added handler, hr: 0x%x", hr);
++    GST_ERROR_OBJECT (self, "Failed to create added handler, hr: 0x%x",
++        (guint) hr);
+     goto run_loop;
+   }
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  hr = make_device_watcher_handler < IUpdatedHandler, IDeviceInformationUpdate >
++      (&updated_handler, self, gst_winrt_device_watcher_device_updated);
++#else
+   hr = MakeAndInitialize < UpdatedHandler > (&updated_handler, self);
++#endif
+   if (FAILED (hr)) {
+-    GST_ERROR_OBJECT (self, "Failed to create updated handler, hr: 0x%x", hr);
++    GST_ERROR_OBJECT (self, "Failed to create updated handler, hr: 0x%x",
++        (guint) hr);
+     goto run_loop;
+   }
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  hr = make_device_watcher_handler < IRemovedHandler, IDeviceInformationUpdate >
++      (&removed_handler, self, gst_winrt_device_watcher_device_removed);
++#else
+   hr = MakeAndInitialize < RemovedHandler > (&removed_handler, self);
++#endif
+   if (FAILED (hr)) {
+-    GST_ERROR_OBJECT (self, "Failed to create removed handler, hr: 0x%x", hr);
++    GST_ERROR_OBJECT (self, "Failed to create removed handler, hr: 0x%x",
++        (guint) hr);
+     goto run_loop;
+   }
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  hr = make_device_watcher_inspectable_handler < IEnumerationCompletedHandler >
++      (&enum_completed_handler, self,
++      gst_winrt_device_watcher_device_enumeration_completed);
++#else
+   hr = MakeAndInitialize < EnumerationCompletedHandler >
+       (&enum_completed_handler, self);
++#endif
+   if (FAILED (hr)) {
+     GST_ERROR_OBJECT (self,
+-        "Failed to create enumeration completed handler, hr: 0x%x", hr);
++        "Failed to create enumeration completed handler, hr: 0x%x", (guint) hr);
+     goto run_loop;
+   }
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  hr = make_device_watcher_inspectable_handler < IStoppedHandler >
++      (&stopped_handler, self,
++      gst_winrt_device_watcher_device_enumeration_stopped);
++#else
+   hr = MakeAndInitialize < StoppedHandler > (&stopped_handler, self);
++#endif
+   if (FAILED (hr)) {
+-    GST_ERROR_OBJECT (self, "Failed to create stopped handler, hr: 0x%x", hr);
++    GST_ERROR_OBJECT (self, "Failed to create stopped handler, hr: 0x%x",
++        (guint) hr);
+     goto run_loop;
+   }
+ 
+   inner = new GstWinRTDeviceWatcherInner ();
+   hr = watcher->add_Added (added_handler.Get (), &inner->added_token);
+   if (FAILED (hr)) {
+-    GST_ERROR_OBJECT (self, "Failed to register added handler, hr: 0x%x", hr);
++    GST_ERROR_OBJECT (self, "Failed to register added handler, hr: 0x%x",
++        (guint) hr);
+     delete inner;
+     inner = nullptr;
+ 
+@@ -470,7 +688,8 @@ gst_winrt_device_watcher_thread_func_inner (GstWinRTDeviceWatcher * self)
+ 
+   hr = watcher->add_Updated (updated_handler.Get (), &inner->updated_token);
+   if (FAILED (hr)) {
+-    GST_ERROR_OBJECT (self, "Failed to register updated handler, hr: 0x%x", hr);
++    GST_ERROR_OBJECT (self, "Failed to register updated handler, hr: 0x%x",
++        (guint) hr);
+     delete inner;
+     inner = nullptr;
+ 
+@@ -479,7 +698,8 @@ gst_winrt_device_watcher_thread_func_inner (GstWinRTDeviceWatcher * self)
+ 
+   hr = watcher->add_Removed (removed_handler.Get (), &inner->removed_token);
+   if (FAILED (hr)) {
+-    GST_ERROR_OBJECT (self, "Failed to register removed handler, hr: 0x%x", hr);
++    GST_ERROR_OBJECT (self, "Failed to register removed handler, hr: 0x%x",
++        (guint) hr);
+     delete inner;
+     inner = nullptr;
+ 
+@@ -490,7 +710,8 @@ gst_winrt_device_watcher_thread_func_inner (GstWinRTDeviceWatcher * self)
+       &inner->enum_completed_token);
+   if (FAILED (hr)) {
+     GST_ERROR_OBJECT (self,
+-        "Failed to register enumeration completed handler, hr: 0x%x", hr);
++        "Failed to register enumeration completed handler, hr: 0x%x",
++        (guint) hr);
+     delete inner;
+     inner = nullptr;
+ 
+@@ -499,7 +720,8 @@ gst_winrt_device_watcher_thread_func_inner (GstWinRTDeviceWatcher * self)
+ 
+   hr = watcher->add_Stopped (stopped_handler.Get (), &inner->stopped_token);
+   if (FAILED (hr)) {
+-    GST_ERROR_OBJECT (self, "Failed to register stopped handler, hr: 0x%x", hr);
++    GST_ERROR_OBJECT (self, "Failed to register stopped handler, hr: 0x%x",
++        (guint) hr);
+     delete inner;
+     inner = nullptr;
+ 
+diff --git a/gst-libs/gst/winrt/meson.build b/gst-libs/gst/winrt/meson.build
+index d373709..fcb1a6a 100644
+--- a/gst-libs/gst/winrt/meson.build
++++ b/gst-libs/gst/winrt/meson.build
+@@ -17,16 +17,26 @@ if host_system != 'windows'
+   subdir_done()
+ endif
+ 
+-# TODO: Need to bump mingw tool chain
+-if cxx.get_id() != 'msvc'
+-  subdir_done()
+-endif
++winrt_required = get_option('wasapi2').enabled()
+ 
+-runtimeobject_lib = cc.find_library('runtimeobject', required : false)
++runtimeobject_lib = cc.find_library('runtimeobject', required : winrt_required)
+ if not runtimeobject_lib.found()
+   subdir_done()
+ endif
+ 
++winrt_headers = [
++  'windows.devices.enumeration.h',
++  'windows.foundation.h',
++  'wrl.h',
++  'wrl/wrappers/corewrappers.h',
++]
++
++foreach h : winrt_headers
++  if not cxx.has_header(h, required: winrt_required)
++    subdir_done()
++  endif
++endforeach
++
+ winapi_app = cxx.compiles('''#include <winapifamily.h>
+   #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+   #error "not winrt"
+diff --git a/sys/wasapi2/AsyncOperations.h b/sys/wasapi2/AsyncOperations.h
+index 4128860..62a786d 100644
+--- a/sys/wasapi2/AsyncOperations.h
++++ b/sys/wasapi2/AsyncOperations.h
+@@ -25,9 +25,112 @@
+ #pragma once
+ 
+ #include <wrl.h>
+-#include <wrl\async.h>
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++#include <windows.system.threading.h>
++#else
+ #include <Windows.System.Threading.h>
++#endif
+ #include <functional>
++#include <new>
++
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++template<typename TOperation, typename THandler>
++class AsyncEventDelegate: public THandler
++{
++public:
++    AsyncEventDelegate()
++        : _refCount(1), _completedEvent(CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS))
++    {
++    }
++
++    virtual ~AsyncEventDelegate()
++    {
++        if (_completedEvent)
++            CloseHandle(_completedEvent);
++    }
++
++    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **object) override
++    {
++        if (!object)
++            return E_POINTER;
++
++        if (IsEqualIID(riid, __uuidof(IUnknown)) ||
++            IsEqualIID(riid, __uuidof(THandler))) {
++            *object = static_cast<THandler *>(this);
++            AddRef();
++            return S_OK;
++        }
++
++        *object = nullptr;
++        return E_NOINTERFACE;
++    }
++
++    ULONG STDMETHODCALLTYPE AddRef() override
++    {
++        return InterlockedIncrement(&_refCount);
++    }
++
++    ULONG STDMETHODCALLTYPE Release() override
++    {
++        ULONG count = InterlockedDecrement(&_refCount);
++        if (!count)
++            delete this;
++        return count;
++    }
++
++    HRESULT STDMETHODCALLTYPE Invoke(TOperation* pOperation, AsyncStatus status) override
++    {
++        SetEvent(_completedEvent);
++        return S_OK;
++    }
++
++    HRESULT SyncWait(_In_ TOperation* pOperation, _In_ DWORD dwMilliseconds)
++    {
++        HRESULT hr;
++        DWORD dwWait;
++
++        if (!pOperation)
++            return E_INVALIDARG;
++        if (!_completedEvent)
++            return HRESULT_FROM_WIN32(GetLastError());
++
++        hr = pOperation->put_Completed(this);
++        if (FAILED(hr))
++            return hr;
++
++        dwWait = WaitForSingleObjectEx(_completedEvent, dwMilliseconds, TRUE);
++        if (WAIT_IO_COMPLETION == dwWait || WAIT_OBJECT_0 == dwWait)
++            return S_OK;
++
++        return HRESULT_FROM_WIN32(GetLastError());
++    }
++
++private:
++    volatile LONG _refCount;
++    HANDLE _completedEvent;
++};
++
++template <typename TOperation, typename THandler>
++HRESULT SyncWait(_In_ TOperation* pOperation, _In_ DWORD dwMilliseconds)
++{
++    auto spCallback = new (std::nothrow) AsyncEventDelegate<TOperation, THandler>();
++    HRESULT hr;
++
++    if (!spCallback)
++        return E_OUTOFMEMORY;
++
++    hr = spCallback->SyncWait(pOperation, dwMilliseconds);
++    spCallback->Release();
++
++    return hr;
++}
++
++template <typename TResult>
++HRESULT SyncWait(_In_ ABI::Windows::Foundation::IAsyncOperation<TResult>* pOperation, _In_ DWORD dwMilliseconds = INFINITE)
++{
++    return SyncWait<ABI::Windows::Foundation::IAsyncOperation<TResult>, ABI::Windows::Foundation::IAsyncOperationCompletedHandler<TResult>>(pOperation, dwMilliseconds);
++}
++#else
+ 
+ template <typename TDelegate, typename TOperation, typename TLambda>
+ HRESULT StartAsyncThen(_In_ TOperation* pOperation, _In_ TLambda&& tFunc)
+@@ -166,3 +269,4 @@ HRESULT SyncWait(_In_ ABI::Windows::Foundation::IAsyncOperationWithProgress<TRes
+ {
+     return SyncWait<ABI::Windows::Foundation::IAsyncOperationWithProgress<TResult, TProgress>, ABI::Windows::Foundation::IAsyncOperationWithProgressCompletedHandler<TResult, TProgress>>(pOperation, dwMilliseconds);
+ }
++#endif
+diff --git a/sys/wasapi2/gstwasapi2client.cpp b/sys/wasapi2/gstwasapi2client.cpp
+index 41c4329..5380fc6 100644
+--- a/sys/wasapi2/gstwasapi2client.cpp
++++ b/sys/wasapi2/gstwasapi2client.cpp
+@@ -30,8 +30,19 @@
+ #include "gstwasapi2client.h"
+ #include "gstwasapi2util.h"
+ #include <initguid.h>
++#include <windows.devices.enumeration.h>
+ #include <windows.foundation.h>
++#include <windows.media.devices.h>
+ #include <windows.ui.core.h>
++#if defined(__has_include)
++#if __has_include(<windows.applicationmodel.core.h>)
++#include <windows.applicationmodel.core.h>
++#define GST_WASAPI2_HAVE_COREAPPLICATION 1
++#endif
++#endif
++#ifndef GST_WASAPI2_HAVE_COREAPPLICATION
++#define GST_WASAPI2_HAVE_COREAPPLICATION 0
++#endif
+ #include <wrl.h>
+ #include <wrl/wrappers/corewrappers.h>
+ #include <audioclient.h>
+@@ -41,9 +52,12 @@
+ #include <locale>
+ #include <codecvt>
+ #include <atomic>
++#include <new>
+ 
+ /* *INDENT-OFF* */
++#if GST_WASAPI2_HAVE_COREAPPLICATION
+ using namespace ABI::Windows::ApplicationModel::Core;
++#endif
+ using namespace ABI::Windows::Foundation;
+ using namespace ABI::Windows::Foundation::Collections;
+ using namespace ABI::Windows::UI::Core;
+@@ -53,6 +67,76 @@ using namespace ABI::Windows::Devices::Enumeration;
+ using namespace Microsoft::WRL;
+ using namespace Microsoft::WRL::Wrappers;
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++class HString
++{
++public:
++  HString (): hstr_ (nullptr)
++  {
++  }
++
++  ~HString ()
++  {
++    if (hstr_)
++      WindowsDeleteString (hstr_);
++  }
++
++  HSTRING Get () const
++  {
++    return hstr_;
++  }
++
++  HSTRING * GetAddressOf ()
++  {
++    if (hstr_) {
++      WindowsDeleteString (hstr_);
++      hstr_ = nullptr;
++    }
++
++    return &hstr_;
++  }
++
++  bool IsValid () const
++  {
++    return hstr_ != nullptr;
++  }
++
++  const wchar_t * GetRawBuffer (unsigned int *len) const
++  {
++    return WindowsGetStringRawBuffer (hstr_, len);
++  }
++
++private:
++  HSTRING hstr_;
++};
++
++template <typename Object, typename... Args>
++static HRESULT
++MakeAndInitialize (ComPtr < Object > *object, Args... args)
++{
++  Object *raw;
++  HRESULT hr;
++
++  if (!object)
++    return E_INVALIDARG;
++
++  raw = new (std::nothrow) Object ();
++  if (!raw)
++    return E_OUTOFMEMORY;
++
++  hr = raw->RuntimeClassInitialize (args...);
++  if (FAILED (hr)) {
++    raw->Release ();
++    return hr;
++  }
++
++  object->Attach (raw);
++  raw->Release ();
++
++  return S_OK;
++}
++#endif
++
+ /* Copy of audioclientactivationparams.h since those types are defined only for
+  * NTDDI_VERSION >= NTDDI_WIN10_FE */
+ #define GST_VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK L"VAD\\Process_Loopback"
+@@ -105,9 +189,14 @@ gst_wasapi2_client_set_endpoint_muted (GstWasapi2Client * client,
+     gboolean muted);
+ 
+ /* *INDENT-OFF* */
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++class GstWasapiDeviceActivator
++    : public IActivateAudioInterfaceCompletionHandler
++#else
+ class GstWasapiDeviceActivator
+     : public RuntimeClass<RuntimeClassFlags<ClassicCom>, FtmBase,
+         IActivateAudioInterfaceCompletionHandler>
++#endif
+ {
+ public:
+   typedef enum {
+@@ -116,6 +205,9 @@ public:
+   } WasapiInterface;
+ 
+   GstWasapiDeviceActivator ()
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++    : ref_count_ (1)
++#endif
+   {
+     g_weak_ref_init (&listener_, nullptr);
+     interface_to_activate_ = WASAPI_IFACE_AUDIO_CLIENT;
+@@ -151,6 +243,40 @@ public:
+     return S_OK;
+   }
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  STDMETHODIMP
++  QueryInterface (REFIID riid, void ** object)
++  {
++    if (!object)
++      return E_POINTER;
++
++    if (IsEqualIID (riid, __uuidof (IUnknown)) ||
++        IsEqualIID (riid, __uuidof (IActivateAudioInterfaceCompletionHandler))) {
++      *object = static_cast < IActivateAudioInterfaceCompletionHandler * >(this);
++      AddRef ();
++      return S_OK;
++    }
++
++    *object = nullptr;
++    return E_NOINTERFACE;
++  }
++
++  STDMETHODIMP_ (ULONG)
++  AddRef (void)
++  {
++    return InterlockedIncrement (&ref_count_);
++  }
++
++  STDMETHODIMP_ (ULONG)
++  Release (void)
++  {
++    ULONG count = InterlockedDecrement (&ref_count_);
++    if (!count)
++      delete this;
++    return count;
++  }
++#endif
++
+   STDMETHOD(ActivateCompleted)
+   (IActivateAudioInterfaceAsyncOperation *async_op)
+   {
+@@ -226,8 +352,12 @@ public:
+     bool run_async = false;
+     HRESULT hr;
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++    auto activate = [this, device_id, params]{
++#else
+     auto work_item = Callback<Implements<RuntimeClassFlags<ClassicCom>,
+         IDispatchedHandler, FtmBase>>([this, device_id, params]{
++#endif
+       ComPtr<IActivateAudioInterfaceAsyncOperation> async_op;
+       HRESULT async_hr = S_OK;
+       PROPVARIANT activate_params = {};
+@@ -258,7 +388,11 @@ public:
+       gst_wasapi2_result (async_hr);
+ 
+       return async_hr;
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++    };
++#else
+     });
++#endif
+ 
+     if (dispatcher_) {
+       boolean can_now;
+@@ -271,28 +405,48 @@ public:
+         run_async = true;
+     }
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++    if (run_async && dispatcher_) {
++      GST_WARNING ("CoreDispatcher::RunAsync is unavailable with MinGW WRL");
++      run_async = false;
++    }
++
++    hr = activate ();
++#else
+     if (run_async && dispatcher_) {
+       hr = dispatcher_->RunAsync (CoreDispatcherPriority_Normal,
+           work_item.Get (), &async_action);
+     } else {
+       hr = work_item->Invoke ();
+     }
++#endif
+ 
+     return hr;
+   }
+ 
+ private:
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  volatile LONG ref_count_;
++#endif
+   GWeakRef listener_;
+   ComPtr<ICoreDispatcher> dispatcher_;
+   WasapiInterface interface_to_activate_;
+ };
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++class GstWasapiEndpointVolumeCallback
++    : public IAudioEndpointVolumeCallback
++#else
+ class GstWasapiEndpointVolumeCallback
+     : public RuntimeClass<RuntimeClassFlags<ClassicCom>, FtmBase,
+         IAudioEndpointVolumeCallback>
++#endif
+ {
+ public:
+   GstWasapiEndpointVolumeCallback ()
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++    : ref_count_ (1)
++#endif
+   {
+     g_weak_ref_init (&client_, nullptr);
+   }
+@@ -311,6 +465,40 @@ public:
+     return S_OK;
+   }
+ 
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  STDMETHODIMP
++  QueryInterface (REFIID riid, void ** object)
++  {
++    if (!object)
++      return E_POINTER;
++
++    if (IsEqualIID (riid, __uuidof (IUnknown)) ||
++        IsEqualIID (riid, __uuidof (IAudioEndpointVolumeCallback))) {
++      *object = static_cast < IAudioEndpointVolumeCallback * >(this);
++      AddRef ();
++      return S_OK;
++    }
++
++    *object = nullptr;
++    return E_NOINTERFACE;
++  }
++
++  STDMETHODIMP_ (ULONG)
++  AddRef (void)
++  {
++    return InterlockedIncrement (&ref_count_);
++  }
++
++  STDMETHODIMP_ (ULONG)
++  Release (void)
++  {
++    ULONG count = InterlockedDecrement (&ref_count_);
++    if (!count)
++      delete this;
++    return count;
++  }
++#endif
++
+   STDMETHOD(OnNotify)
+   (AUDIO_VOLUME_NOTIFICATION_DATA * notify)
+   {
+@@ -323,6 +511,9 @@ public:
+   }
+ 
+ private:
++#if defined(__MINGW32__) && !defined(_MSC_VER)
++  volatile LONG ref_count_;
++#endif
+   GWeakRef client_;
+ };
+ /* *INDENT-ON* */
+@@ -746,11 +937,12 @@ gst_wasapi2_client_activate_async (GstWasapi2Client * self,
+     GstWasapiDeviceActivator * endpoint_volume_activator)
+ {
+   /* *INDENT-OFF* */
+-  ComPtr<IDeviceInformationStatics> device_info_static;
++  ComPtr<IDeviceInformationStatics2> device_info_static;
+   ComPtr<IAsyncOperation<DeviceInformationCollection*>> async_op;
+   ComPtr<IVectorView<DeviceInformation*>> device_list;
+   HStringReference hstr_device_info =
+       HStringReference(RuntimeClass_Windows_Devices_Enumeration_DeviceInformation);
++  HString device_class_selector;
+   /* *INDENT-ON* */
+   HRESULT hr;
+   DeviceClass device_class;
+@@ -867,7 +1059,14 @@ gst_wasapi2_client_activate_async (GstWasapi2Client * self,
+   if (!gst_wasapi2_result (hr))
+     return;
+ 
+-  hr = device_info_static->FindAllAsyncDeviceClass (device_class, &async_op);
++  hr = device_info_static->GetAqsFilterFromDeviceClass (device_class,
++      device_class_selector.GetAddressOf ());
++  if (!gst_wasapi2_result (hr))
++    return;
++
++  hr = device_info_static->FindAllAsyncWithKindAqsFilterAndAdditionalProperties
++      (device_class_selector.Get (), nullptr, DeviceInformationKind_DeviceInterface,
++      &async_op);
+   device_info_static.Reset ();
+   if (!gst_wasapi2_result (hr))
+     return;
+@@ -1216,6 +1415,7 @@ gst_wasapi2_client_ensure_activation (GstWasapi2Client * client)
+ static HRESULT
+ find_dispatcher (ICoreDispatcher ** dispatcher)
+ {
++#if GST_WASAPI2_HAVE_COREAPPLICATION
+   /* *INDENT-OFF* */
+   HStringReference hstr_core_app =
+       HStringReference(RuntimeClass_Windows_ApplicationModel_Core_CoreApplication);
+@@ -1238,6 +1438,9 @@ find_dispatcher (ICoreDispatcher ** dispatcher)
+     return hr;
+ 
+   return core_window->get_Dispatcher (dispatcher);
++#else
++  return E_NOTIMPL;
++#endif
+ }
+ 
+ GstWasapi2Client *
+diff --git a/sys/wasapi2/gstwasapi2ringbuffer.cpp b/sys/wasapi2/gstwasapi2ringbuffer.cpp
+index 86addc8..613e300 100644
+--- a/sys/wasapi2/gstwasapi2ringbuffer.cpp
++++ b/sys/wasapi2/gstwasapi2ringbuffer.cpp
+@@ -17,9 +17,9 @@
+  * Boston, MA 02110-1301, USA.
+  */
+ 
++#include <mfapi.h>
+ #include "gstwasapi2ringbuffer.h"
+ #include <string.h>
+-#include <mfapi.h>
+ #include <wrl.h>
+ #include <memory>
+ #include <atomic>
+diff --git a/sys/wasapi2/meson.build b/sys/wasapi2/meson.build
+index 26d382d..5e93128 100644
+--- a/sys/wasapi2/meson.build
++++ b/sys/wasapi2/meson.build
+@@ -49,6 +49,22 @@ if not cxx.has_header_symbol ('audioclient.h', 'IAudioClient3', dependencies : w
+   endif
+ endif
+ 
++wasapi2_headers = [
++  'windows.devices.enumeration.h',
++  'windows.foundation.h',
++  'windows.media.devices.h',
++  'windows.system.threading.h',
++  'windows.ui.core.h',
++  'wrl.h',
++  'wrl/wrappers/corewrappers.h',
++]
++
++foreach h : wasapi2_headers
++  if not cxx.has_header(h, required: wasapi2_option)
++    subdir_done()
++  endif
++endforeach
++
+ foreach symbol: mmdeviceapi_symbols
+   if not cxx.has_header_symbol ('mmdeviceapi.h', symbol, dependencies : wasapi2_dep)
+     if wasapi2_option.enabled()
+@@ -60,7 +76,6 @@ foreach symbol: mmdeviceapi_symbols
+ endforeach
+ 
+ winapi_app = cxx.compiles('''#include <winapifamily.h>
+-  #include <windows.applicationmodel.core.h>
+   #include <wrl.h>
+   #include <wrl/wrappers/corewrappers.h>
+   #include <audioclient.h>
+diff --git a/sys/wasapi2/plugin.c b/sys/wasapi2/plugin.c
+index dcbdd2d..c578fbf 100644
+--- a/sys/wasapi2/plugin.c
++++ b/sys/wasapi2/plugin.c
+@@ -22,12 +22,12 @@
+ #endif
+ 
+ #include <winapifamily.h>
++#include <mfapi.h>
+ 
+ #include "gstwasapi2sink.h"
+ #include "gstwasapi2src.h"
+ #include "gstwasapi2device.h"
+ #include "gstwasapi2util.h"
+-#include <mfapi.h>
+ 
+ GST_DEBUG_CATEGORY (gst_wasapi2_debug);
+ GST_DEBUG_CATEGORY (gst_wasapi2_client_debug);

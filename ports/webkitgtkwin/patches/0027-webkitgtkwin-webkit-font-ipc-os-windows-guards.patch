@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@ooblerg.local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: use OS(WINDOWS) for Cairo font IPC data
+
+GTK-on-Windows has OS(WINDOWS) true but PLATFORM(WIN) false. The Windows
+Cairo font backend stores LOGFONT inside the WebCore font IPC structs, so
+the generated WebKit serializers must use the same OS(WINDOWS) guard or
+their generated layout checks disagree with WebCore.
+---
+ Source/WebKit/Shared/WebCoreFont.serialization.in            | 2 +-
+ Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/Source/WebKit/Shared/WebCoreFont.serialization.in b/Source/WebKit/Shared/WebCoreFont.serialization.in
+index 4e9b6be..9b509a1 100644
+--- a/Source/WebKit/Shared/WebCoreFont.serialization.in
++++ b/Source/WebKit/Shared/WebCoreFont.serialization.in
+@@ -73,7 +73,7 @@ header: <WebCore/FontPlatformData.h>
+     WebCore::TextRenderingMode m_textRenderingMode;
+     bool m_syntheticBold;
+     bool m_syntheticOblique;
+-#if PLATFORM(WIN) && USE(CAIRO)
++#if OS(WINDOWS) && USE(CAIRO)
+     LOGFONT m_font;
+ #endif
+ #if USE(CORE_TEXT)
+diff --git a/Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in b/Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in
+index 779125e..6ed24e7 100644
+--- a/Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in
++++ b/Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in
+@@ -22,7 +22,7 @@
+ 
+ #if USE(CAIRO)
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS) && USE(CAIRO)
+ headers: "CoreIPCLOGFONT.h"
+ [Wrapper=WebKit::CoreIPCLOGFONT, CreateUsing=create, Alias=struct LOGFONTW, Nested] alias LOGFONT {
+     std::span<const LOGFONT, 1> data();
+@@ -36,7 +36,7 @@ header: <WebCore/FontPlatformData.h>
+ };
+ 
+ [CustomHeader] struct WebCore::FontPlatformSerializedData {
+-#if PLATFORM(WIN)
++#if OS(WINDOWS) && USE(CAIRO)
+     LOGFONT logFont;
+ #endif
+ };
+-- 
+2.45.0

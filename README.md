@@ -5,9 +5,10 @@
 to form a `/mingw64` sysroot usable on Windows and usable from this Ubuntu host
 while building later dependencies.
 
-The initial target set is GTK 4, Vala, libgee, libsoup 3, their dependency
-closure, and a packaged MinGW runtime seed compatible with Ubuntu 24.04's
-MinGW cross tools.
+The current target set is GTK 4, Vala, libgee, libsoup 3, GDAL, GStreamer
+core plus curated base/good/bad/ugly plugin sets, their dependency closure,
+and a packaged MinGW runtime seed compatible with Ubuntu 24.04's MinGW cross
+tools.
 
 ## Host assumptions
 
@@ -34,11 +35,11 @@ relevant `noble`, `noble-updates`, and `noble-security` entries instead.
 ## Quick start
 
 ```sh
-./tools/ooblerg.py doctor
-./tools/ooblerg.py versions
-./tools/ooblerg.py seed-runtime
-./tools/ooblerg.py fetch vala
-./tools/ooblerg.py build vala
+sqgi tools/ooblerg.nut doctor
+sqgi tools/ooblerg.nut versions
+sqgi tools/ooblerg.nut seed-runtime
+sqgi tools/ooblerg.nut fetch vala
+sqgi tools/ooblerg.nut build vala
 ```
 
 Artifacts are written to `out/artifacts`. The accumulated build sysroot lives
@@ -52,7 +53,7 @@ introspection-enabled packages:
 
 ```sh
 export OOBLERG_EXE_WRAPPER=/path/to/wine64-or-wrapper
-./tools/ooblerg.py build glib-introspection
+sqgi tools/ooblerg.nut build glib-introspection
 ```
 
 On this ARM host, the working path is an amd64 QEMU VM with Wine installed.
@@ -70,14 +71,14 @@ export OOBLERG_REMOTE_WINE=/usr/lib/wine/wine64
 To rebuild a clean Windows-style sysroot from the current artifact set:
 
 ```sh
-./tools/ooblerg.py rebuild-sysroot --no-build-shims vala gtk4 libgee libsoup3
+sqgi tools/ooblerg.nut rebuild-sysroot --no-build-shims vala gtk4 libgee libsoup3 gdal gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly
 ```
 
 ## Layout
 
 - `manifest/packages.json` describes packages, source names, dependencies, and
   build recipes.
-- `tools/ooblerg.py` fetches Ubuntu sources, cross-compiles, packages staged
+- `tools/ooblerg.nut` fetches Ubuntu sources, cross-compiles, packages staged
   installs, and installs artifacts into the sysroot.
 - `out/sources` stores downloaded/extracted Ubuntu source packages.
 - `out/build` stores build directories.
@@ -87,10 +88,19 @@ To rebuild a clean Windows-style sysroot from the current artifact set:
 
 ## Current status
 
-The current artifact set includes GTK 4, Vala, libgee, libsoup 3, and the
+The current artifact set includes GTK 4, Vala, libgee, libsoup 3, GDAL,
+GStreamer core, curated GStreamer base/good/bad/ugly plugin sets, and the
 dependency closure currently needed for those roots. Several recipes carry
 cross-compilation fixes for build-machine tools, Windows resource generation,
 and Ubuntu source packages that omit generated files.
+
+The GStreamer plugin profile is Windows-oriented where upstream provides
+MinGW-friendly implementations. It includes DirectSound output/input, WASAPI
+and WASAPI2 source/sink elements, Direct3D9 and Direct3D11 video output,
+Direct3D11 upload/download/convert/compositor helpers, Windows kernel-streaming
+capture, DirectX/GDI screen capture, and Win32 IPC video elements alongside the
+portable base/good/bad/ugly plugins. The bad plugin artifact also installs
+GstD3D11 and GstDxva typelibs.
 
 GObject introspection plumbing is present in the manifest. The
 `gobject-introspection` metadata artifact provides Ubuntu-pinned
@@ -106,3 +116,7 @@ its own package using these runtime files as part of the sysroot.
 `libpsl` is currently built with Ubuntu's `publicsuffix` data compiled in, but
 without the optional libidn2 runtime conversion path. That avoids adding a
 non-Ubuntu libiconv dependency to the MinGW sysroot.
+
+The `webkitgtk` manifest entry and `ports/webkitgtkwin` patch series are kept
+as an experimental GTK 4 Windows port. It is not part of the low-friction
+artifact path yet.

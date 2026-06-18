@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@ooblerg.local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: use OS(WINDOWS) in IPC event semaphore path
+
+GTK-on-Windows has OS(WINDOWS) true but PLATFORM(WIN) false. Use the OS
+guard when duplicating the event semaphore so this port takes the Win32Handle
+path instead of the UnixFileDescriptor path.
+---
+ Source/WebKit/Platform/IPC/IPCEvent.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Source/WebKit/Platform/IPC/IPCEvent.h b/Source/WebKit/Platform/IPC/IPCEvent.h
+index 8600808..2566fd9 100644
+--- a/Source/WebKit/Platform/IPC/IPCEvent.h
++++ b/Source/WebKit/Platform/IPC/IPCEvent.h
+@@ -149,6 +149,6 @@ inline std::optional<EventSignalPair> createEventSignalPair()
+ {
+     Semaphore event;
+-#if PLATFORM(WIN)
++#if OS(WINDOWS)
+     Semaphore signal(Win32Handle { event.m_semaphoreHandle });
+ #else
+     Semaphore signal(event.m_fd.duplicate());
+-- 
+2.45.0

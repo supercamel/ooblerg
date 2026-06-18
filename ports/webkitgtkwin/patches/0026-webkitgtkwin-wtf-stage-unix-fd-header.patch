@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@ooblerg.local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: stage UnixFileDescriptor for GTK Windows
+
+The GTK accelerated backing IPC messages still mention UnixFileDescriptor
+while the Windows port keeps that path compiling out its Unix transport
+implementation. Stage the lightweight wrapper header for WIN32 so the
+generated receivers and GTK headers can compile while the platform backend
+split continues.
+---
+ Source/WTF/wtf/PlatformGTK.cmake | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/Source/WTF/wtf/PlatformGTK.cmake b/Source/WTF/wtf/PlatformGTK.cmake
+index 1a73669..2b77ea7 100644
+--- a/Source/WTF/wtf/PlatformGTK.cmake
++++ b/Source/WTF/wtf/PlatformGTK.cmake
+@@ -89,6 +89,8 @@ if (WIN32)
+         win/SoftLinking.h
+         win/WTFCRTDebug.h
+         win/Win32Handle.h
++
++        unix/UnixFileDescriptor.h
+     )
+ else ()
+     list(APPEND WTF_PUBLIC_HEADERS
+-- 
+2.45.0

@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: guard Unix IPC helpers on Windows
+
+The GTK port uses GLib cross-platform, but its credential handoff and
+Unix-domain IPC transport helpers are Unix-specific. Avoid exposing pid_t
+and compiling Unix transport bodies when building the GTK port for Windows;
+the Windows IPC backend uses the common Win32 handle path instead.
+---
+--- a/Source/WebKit/Platform/IPC/Connection.h
++++ b/Source/WebKit/Platform/IPC/Connection.h
+@@ -349,7 +349,7 @@
+     pid_t remoteProcessID() const;
+ #endif
+ 
+-#if USE(GLIB)
++#if USE(GLIB) && USE(UNIX_DOMAIN_SOCKETS)
+     void sendCredentials() const;
+     static pid_t remoteProcessID(GSocket*);
+ #endif
+--- a/Source/WebKit/Platform/IPC/glib/ConnectionGLib.cpp
++++ b/Source/WebKit/Platform/IPC/glib/ConnectionGLib.cpp
+@@ -27,7 +27,7 @@
+ #include "config.h"
+ #include "Connection.h"
+ 
+-#if USE(GLIB)
++#if USE(GLIB) && USE(UNIX_DOMAIN_SOCKETS)
+ #include "IPCUtilities.h"
+ #include "Logging.h"
+ #include "UnixMessage.h"
+--- a/Source/WebKit/Platform/IPC/unix/ArgumentCodersUnix.cpp
++++ b/Source/WebKit/Platform/IPC/unix/ArgumentCodersUnix.cpp
+@@ -31,6 +31,8 @@
+ #include "Encoder.h"
+ #include <wtf/unix/UnixFileDescriptor.h>
+ 
++#if USE(UNIX_DOMAIN_SOCKETS)
++
+ namespace IPC {
+     
+ void ArgumentCoder<UnixFileDescriptor>::encode(Encoder& encoder, const UnixFileDescriptor& fd)
+@@ -54,3 +56,5 @@
+ #endif // OS(ANDROID)
+ 
+ }
++
++#endif // USE(UNIX_DOMAIN_SOCKETS)
+--- a/Source/WebKit/Platform/IPC/unix/IPCSemaphoreUnix.cpp
++++ b/Source/WebKit/Platform/IPC/unix/IPCSemaphoreUnix.cpp
+@@ -27,6 +27,8 @@
+ #include "config.h"
+ #include "IPCSemaphore.h"
+ 
++#if USE(UNIX_DOMAIN_SOCKETS)
++
+ #include "Decoder.h"
+ #include "Encoder.h"
+ #include <wtf/UniStdExtras.h>
+@@ -161,3 +163,5 @@
+ }
+ 
+ } // namespace IPC
++
++#endif // USE(UNIX_DOMAIN_SOCKETS)
+--- a/Source/WebKit/Platform/IPC/unix/IPCUtilitiesUnix.cpp
++++ b/Source/WebKit/Platform/IPC/unix/IPCUtilitiesUnix.cpp
+@@ -27,6 +27,8 @@
+ #include "config.h"
+ #include "IPCUtilities.h"
+ 
++#if USE(UNIX_DOMAIN_SOCKETS)
++
+ #include <sys/socket.h>
+ #include <wtf/UniStdExtras.h>
+ 
+@@ -63,3 +65,5 @@
+ }
+ 
+ } // namespace IPC
++
++#endif // USE(UNIX_DOMAIN_SOCKETS)

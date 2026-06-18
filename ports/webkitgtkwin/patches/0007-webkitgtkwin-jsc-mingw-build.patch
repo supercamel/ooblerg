@@ -1,0 +1,12 @@
+diff -urN a/Source/JavaScriptCore/Sources.txt b/Source/JavaScriptCore/Sources.txt
+--- a/Source/JavaScriptCore/Sources.txt
++++ b/Source/JavaScriptCore/Sources.txt
+@@ -36,7 +36,7 @@
+ API/JSMarkingConstraintPrivate.cpp
+ API/JSObjectRef.cpp
+ API/JSTypedArray.cpp
+-API/JSScriptRef.cpp
++API/JSScriptRef.cpp @no-unify
+ API/JSStringRef.cpp
+ API/JSValueRef.cpp
+ API/JSWeakObjectMapRefPrivate.cpp

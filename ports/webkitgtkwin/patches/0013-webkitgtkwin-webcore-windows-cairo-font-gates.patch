@@ -1,0 +1,279 @@
+--- a/Source/WebCore/platform/graphics/Font.h
++++ b/Source/WebCore/platform/graphics/Font.h
+@@ -49,7 +49,7 @@
+ #include "OpenTypeVerticalData.h"
+ #endif
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS)
+ #include <usp10.h>
+ #endif
+ 
+@@ -267,7 +267,7 @@
+     WEBCORE_EXPORT IPCFontData toSerializableFont() const;
+     WEBCORE_EXPORT std::optional<InstalledFont> toSerializableInstalledFont() const;
+ #endif
+-#if PLATFORM(WIN)
++#if OS(WINDOWS)
+     SCRIPT_CACHE* scriptCache() const { return &m_scriptCache; }
+ #endif
+ 
+@@ -406,7 +406,7 @@
+     mutable SupportsFeature m_supportsOpenTypeAlternateHalfWidths { SupportsFeature::Unknown };
+ #endif
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS)
+     mutable SCRIPT_CACHE m_scriptCache { 0 };
+ #endif
+ 
+--- a/Source/WebCore/platform/graphics/FontCustomPlatformData.h
++++ b/Source/WebCore/platform/graphics/FontCustomPlatformData.h
+@@ -32,7 +32,7 @@
+ #include <wtf/Platform.h>
+ #include <wtf/TZoneMallocInlines.h>
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS) && USE(CAIRO)
+ #include <wtf/text/WTFString.h>
+ #elif USE(CORE_TEXT)
+ #include <CoreFoundation/CFBase.h>
+@@ -71,7 +71,7 @@
+     WEBCORE_EXPORT static RefPtr<FontCustomPlatformData> create(SharedBuffer&, const String&);
+     WEBCORE_EXPORT static RefPtr<FontCustomPlatformData> createMemorySafe(SharedBuffer&, const String&);
+ 
+-#if PLATFORM(WIN) && USE(CAIRO)
++#if OS(WINDOWS) && USE(CAIRO)
+     FontCustomPlatformData(const String& name, FontPlatformData::CreationData&&);
+ #elif USE(CORE_TEXT)
+     FontCustomPlatformData(CTFontDescriptorRef fontDescriptor, FontPlatformData::CreationData&& creationData)
+@@ -95,7 +95,7 @@
+     static bool supportsFormat(const String&);
+     static bool supportsTechnology(const FontTechnology&);
+ 
+-#if PLATFORM(WIN) && USE(CAIRO)
++#if OS(WINDOWS) && USE(CAIRO)
+     String name;
+ #elif USE(CORE_TEXT)
+     RetainPtr<CTFontDescriptorRef> fontDescriptor;
+--- a/Source/WebCore/platform/graphics/FontPlatformData.h
++++ b/Source/WebCore/platform/graphics/FontPlatformData.h
+@@ -33,8 +33,7 @@
+ #include <wtf/TZoneMalloc.h>
+ #include <wtf/Vector.h>
+ 
+-#if PLATFORM(WIN)
+-#include "COMPtr.h"
++#if OS(WINDOWS) && USE(CAIRO)
+ #include "FontMemoryResource.h"
+ #include "SharedGDIObject.h"
+ #endif
+@@ -71,7 +70,7 @@
+ #include <CoreGraphics/CoreGraphics.h>
+ #endif
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS) && USE(CAIRO)
+ #include <wtf/win/GDIObject.h>
+ typedef struct HFONT__* HFONT;
+ interface IDWriteFont;
+@@ -120,7 +120,7 @@
+     WEBCORE_EXPORT std::optional<FontPlatformSerializedAttributes> serializableAttributes() const;
+ #endif
+ 
+-#if PLATFORM(WIN) && USE(CAIRO)
++#if OS(WINDOWS) && USE(CAIRO)
+     FontPlatformDataAttributes(float size, FontOrientation orientation, FontWidthVariant widthVariant, TextRenderingMode textRenderingMode, bool syntheticBold, bool syntheticOblique, LOGFONT font)
+         : m_size(size)
+         , m_orientation(orientation)
+@@ -155,7 +155,7 @@
+     bool m_syntheticBold { false };
+     bool m_syntheticOblique { false };
+ 
+-#if PLATFORM(WIN) && USE(CAIRO)
++#if OS(WINDOWS) && USE(CAIRO)
+     LOGFONT m_font;
+ #elif USE(CORE_TEXT)
+     RetainPtr<CFDictionaryRef> m_attributes;
+@@ -293,7 +293,7 @@
+ };
+ 
+ struct FontPlatformSerializedData {
+-#if PLATFORM(WIN)
++#if OS(WINDOWS) && USE(CAIRO)
+     LOGFONT logFont;
+ #endif
+ };
+@@ -337,7 +337,7 @@
+     WEBCORE_EXPORT FontPlatformData(RetainPtr<CTFontRef>&&, float size, bool syntheticBold = false, bool syntheticOblique = false, FontOrientation = FontOrientation::Horizontal, FontWidthVariant = FontWidthVariant::RegularWidth, TextRenderingMode = TextRenderingMode::Auto, const FontCustomPlatformData* = nullptr);
+ #endif
+ 
+-#if PLATFORM(WIN) && USE(CAIRO)
++#if OS(WINDOWS) && USE(CAIRO)
+     WEBCORE_EXPORT FontPlatformData(GDIObject<HFONT>, float size, bool syntheticBold, bool syntheticOblique, const FontCustomPlatformData* = nullptr);
+     FontPlatformData(GDIObject<HFONT>, cairo_font_face_t*, float size, bool bold, bool italic, const FontCustomPlatformData* = nullptr);
+ #endif
+@@ -362,7 +362,7 @@
+     static FontPlatformData cloneWithSize(const FontPlatformData&, float);
+     void updateSizeWithFontSizeAdjust(const FontSizeAdjust&, float);
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS) && USE(CAIRO)
+     HFONT hfont() const { return m_hfont ? m_hfont->get() : 0; }
+ #endif
+ 
+@@ -463,7 +463,7 @@
+     struct CreationData {
+         const Ref<SharedBuffer> fontFaceData;
+         String itemInCollection;
+-#if PLATFORM(WIN) && USE(CAIRO)
++#if OS(WINDOWS) && USE(CAIRO)
+         Ref<FontMemoryResource> m_fontResource;
+ #endif
+     };
+@@ -486,7 +486,7 @@
+     CGFloat ctFontSize() const;
+ #endif
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS) && USE(CAIRO)
+     void platformDataInit(HFONT, float size);
+ #endif
+ 
+@@ -498,7 +498,7 @@
+     void buildScaledFont(cairo_font_face_t*);
+ #endif
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS) && USE(CAIRO)
+     RefPtr<SharedGDIObject<HFONT>> m_hfont; // FIXME: Delete this in favor of m_hbFont
+ #elif USE(CORE_TEXT)
+     RetainPtr<CTFontRef> m_font;
+@@ -580,7 +580,7 @@
+ 
+ #endif
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS) && USE(CAIRO)
+ // This is a scaling factor for Windows GDI fonts. We do this for
+ // subpixel precision when rendering using Uniscribe.
+ constexpr int cWindowsFontScaleFactor = 32;
+--- a/Source/WebCore/platform/graphics/win/FontCustomPlatformDataWin.cpp
++++ b/Source/WebCore/platform/graphics/win/FontCustomPlatformDataWin.cpp
+@@ -21,7 +21,7 @@
+ #include "config.h"
+ #include "FontCustomPlatformData.h"
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS) && USE(CAIRO)
+ 
+ #include "CSSFontFaceSrcValue.h"
+ #include "FontCreationContext.h"
+@@ -113,4 +113,4 @@
+ 
+ } // namespace WebCore
+ 
+-#endif // PLATFORM(WIN)
++#endif // OS(WINDOWS) && USE(CAIRO)
+--- a/Source/WebCore/platform/graphics/win/cairo/FontCacheWinCairo.cpp
++++ b/Source/WebCore/platform/graphics/win/cairo/FontCacheWinCairo.cpp
+@@ -29,7 +29,7 @@
+ #include "config.h"
+ #include "FontCache.h"
+ 
+-#if PLATFORM(WIN) && USE(CAIRO)
++#if OS(WINDOWS) && USE(CAIRO)
+ 
+ namespace WebCore {
+ 
+@@ -71,4 +71,4 @@
+ 
+ } // namespace WebCore
+ 
+-#endif // PLATFORM(WIN) && USE(CAIRO)
++#endif // OS(WINDOWS) && USE(CAIRO)
+--- a/Source/WebCore/platform/graphics/win/cairo/FontCustomPlatformDataWinCairo.cpp
++++ b/Source/WebCore/platform/graphics/win/cairo/FontCustomPlatformDataWinCairo.cpp
+@@ -21,7 +21,7 @@
+ #include "config.h"
+ #include "FontCustomPlatformData.h"
+ 
+-#if PLATFORM(WIN) && USE(CAIRO)
++#if OS(WINDOWS) && USE(CAIRO)
+ 
+ #include "FontDescription.h"
+ #include <cairo-win32.h>
+@@ -64,4 +64,4 @@
+ 
+ } // namespace WebCore
+ 
+-#endif // PLATFORM(WIN) && USE(CAIRO)
++#endif // OS(WINDOWS) && USE(CAIRO)
+--- a/Source/WebCore/platform/graphics/win/cairo/FontPlatformDataWinCairo.cpp
++++ b/Source/WebCore/platform/graphics/win/cairo/FontPlatformDataWinCairo.cpp
+@@ -27,7 +27,7 @@
+ #include "config.h"
+ #include "FontPlatformData.h"
+ 
+-#if PLATFORM(WIN) && USE(CAIRO)
++#if OS(WINDOWS) && USE(CAIRO)
+ 
+ #include "HWndDC.h"
+ #include "SharedBuffer.h"
+@@ -42,15 +42,16 @@
+ 
+ static IDWriteGdiInterop* getDWriteGdiInterop()
+ {
+-    static COMPtr<IDWriteGdiInterop> gdiInterop;
++    static IDWriteGdiInterop* gdiInterop;
+     if (gdiInterop)
+-        return gdiInterop.get();
+-    COMPtr<IDWriteFactory> factory;
++        return gdiInterop;
++    IDWriteFactory* factory = nullptr;
+-    HRESULT hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&factory));
++    HRESULT hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, IID_IDWriteFactory, reinterpret_cast<IUnknown**>(&factory));
+     RELEASE_ASSERT(SUCCEEDED(hr));
+     hr = factory->GetGdiInterop(&gdiInterop);
++    factory->Release();
+     RELEASE_ASSERT(SUCCEEDED(hr));
+-    return gdiInterop.get();
++    return gdiInterop;
+ }
+ 
+ cairo_font_face_t*
+@@ -60,7 +61,7 @@
+ 
+     bool retry = false;
+     GDIObject<HFONT> retryFont;
+-    COMPtr<IDWriteFontFace> dwFace;
++    IDWriteFontFace* dwFace = nullptr;
+     HWndDC hdc(nullptr);
+     while (font) {
+         HGDIOBJ oldFont = SelectObject(hdc, font);
+@@ -79,7 +80,9 @@
+         retry = true;
+     }
+     RELEASE_ASSERT(dwFace);
+-    return cairo_dwrite_font_face_create_for_dwrite_fontface(dwFace.get());
++    auto* fontFace = cairo_dwrite_font_face_create_for_dwrite_fontface(dwFace);
++    dwFace->Release();
++    return fontFace;
+ }
+ 
+ void FontPlatformData::platformDataInit(HFONT font, float size)
+@@ -152,7 +155,7 @@
+ String FontPlatformData::familyName() const
+ {
+     HWndDC hdc(0);
+-    HGDIOBJ oldFont = SelectObject(hdc, m_hfont.get());
++    HGDIOBJ oldFont = SelectObject(hdc, hfont());
+     wchar_t faceName[LF_FACESIZE];
+     GetTextFace(hdc, LF_FACESIZE, faceName);
+     SelectObject(hdc, oldFont);
+@@ -161,4 +161,4 @@
+ 
+ } // namespace WebCore
+ 
+-#endif // PLATFORM(WIN) && USE(CAIRO)
++#endif // OS(WINDOWS) && USE(CAIRO)

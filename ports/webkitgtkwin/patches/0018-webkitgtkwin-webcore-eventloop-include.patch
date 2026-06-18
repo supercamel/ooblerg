@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: include EventLoop in DocumentLoader
+
+DocumentLoader uses Document::eventLoop().queueTask(), which needs the full
+EventLoopTaskGroup definition. Unified source ordering can otherwise leave only
+the ScriptExecutionContext forward declaration visible.
+---
+ Source/WebCore/loader/DocumentLoader.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Source/WebCore/loader/DocumentLoader.cpp b/Source/WebCore/loader/DocumentLoader.cpp
+index 78d505fd7794..0a0ce03a68e5 100644
+--- a/Source/WebCore/loader/DocumentLoader.cpp
++++ b/Source/WebCore/loader/DocumentLoader.cpp
+@@ -49,6 +49,7 @@
+ #include "ElementChildIteratorInlines.h"
+ #include "Event.h"
++#include "EventLoop.h"
+ #include "EventNames.h"
+ #include "ExtensionStyleSheets.h"
+ #include "FormSubmission.h"
+ #include "FrameDestructionObserverInlines.h"
+-- 
+2.43.0

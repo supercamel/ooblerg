@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@ooblerg.local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: avoid legacy Win WKAPICast on GTK
+
+WKAPICast.h selected WKAPICastWin.h for every _WIN32 build, including
+WebKitGTK-on-Windows. Keep the legacy Windows C API cast header for the
+Windows port, but let GTK and WPE continue using their own cast headers.
+---
+ Source/WebKit/UIProcess/API/C/WKAPICast.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Source/WebKit/UIProcess/API/C/WKAPICast.h b/Source/WebKit/UIProcess/API/C/WKAPICast.h
+index ee39987..60aaacf 100644
+--- a/Source/WebKit/UIProcess/API/C/WKAPICast.h
++++ b/Source/WebKit/UIProcess/API/C/WKAPICast.h
+@@ -439,7 +439,7 @@ inline WKStorageBlockingPolicy toAPI(WebCore::StorageBlockingPolicy policy)
+ #include "WKAPICastWPE.h"
+ #endif
+ 
+-#if defined(WIN32) || defined(_WIN32)
++#if (defined(WIN32) || defined(_WIN32)) && !defined(BUILDING_GTK__) && !defined(BUILDING_WPE__)
+ #include "WKAPICastWin.h"
+ #endif
+ 

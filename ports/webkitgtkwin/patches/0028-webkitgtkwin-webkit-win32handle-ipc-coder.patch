@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@ooblerg.local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: generate a Win32Handle IPC coder
+
+The Windows WebKit platform serializers use WTF::Win32Handle for
+ConnectionHandle, IPC semaphores, and shared-memory handles. WTF already
+provides a portable IPCData representation plus create/toIPCData helpers;
+expose that to the serializer generator so GTK-on-Windows can build the
+same handle-passing path.
+---
+ Source/WebKit/Shared/WTFArgumentCoders.serialization.in | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/Source/WebKit/Shared/WTFArgumentCoders.serialization.in b/Source/WebKit/Shared/WTFArgumentCoders.serialization.in
+index 12185f5..618d0fd 100644
+--- a/Source/WebKit/Shared/WTFArgumentCoders.serialization.in
++++ b/Source/WebKit/Shared/WTFArgumentCoders.serialization.in
+@@ -238,6 +238,18 @@ template: struct WebKit::WebTransportSessionIdentifierType
+     [Validator='WTF::ObjectIdentifierGenericBase<uint64_t>::isValidIdentifier(*toUInt64)'] uint64_t toUInt64()
+ }
+ 
++#if OS(WINDOWS)
++header: <wtf/win/Win32Handle.h>
++[CustomHeader, Nested, WebKitPlatform] struct WTF::Win32Handle::IPCData {
++    uintptr_t handle;
++    DWORD processID;
++};
++
++[CreateUsing=createFromIPCData, RValue, CustomHeader, WebKitPlatform] class WTF::Win32Handle {
++    WTF::Win32Handle::IPCData toIPCData();
++}
++#endif
++
+ #if OS(WINDOWS)
+ using WTF::ProcessID = int;
+ #else
+-- 
+2.45.0

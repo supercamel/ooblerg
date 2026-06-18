@@ -1,0 +1,26 @@
+diff --git a/Source/WTF/wtf/CurrentTime.cpp b/Source/WTF/wtf/CurrentTime.cpp
+index 0920c18c27d4..b929de2e06d4 100644
+--- a/Source/WTF/wtf/CurrentTime.cpp
++++ b/Source/WTF/wtf/CurrentTime.cpp
+@@ -120,7 +120,7 @@ double highResUpTime()
+         if (tickCount >= tickCountLast)
+             tickCountElapsed = (tickCount - tickCountLast);
+         else {
+-            __int64 tickCountLarge = tickCount + 0x100000000I64;
++            __int64 tickCountLarge = tickCount + 0x100000000LL;
+             tickCountElapsed = tickCountLarge - tickCountLast;
+         }
+ 
+diff --git a/Source/WTF/wtf/FunctionTraits.h b/Source/WTF/wtf/FunctionTraits.h
+index 72e22ffc1c63..39d841a88d4c 100644
+--- a/Source/WTF/wtf/FunctionTraits.h
++++ b/Source/WTF/wtf/FunctionTraits.h
+@@ -90,7 +90,7 @@ template<typename Result, typename... Args>
+ struct FunctionTraits<Result(*)(Args...)> : public FunctionTraits<Result(Args...)> {
+ };
+ 
+-#if OS(WINDOWS)
++#if OS(WINDOWS) && !(COMPILER(GCC) && CPU(X86_64))
+ template<typename Result, typename... Args>
+ struct FunctionTraits<Result SYSV_ABI (*)(Args...)> : public FunctionTraits<Result(Args...)> {
+ };

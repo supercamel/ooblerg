@@ -1,0 +1,33 @@
+diff --git a/Source/WTF/wtf/PlatformGTK.cmake b/Source/WTF/wtf/PlatformGTK.cmake
+index 1a73669..be4950f 100644
+--- a/Source/WTF/wtf/PlatformGTK.cmake
++++ b/Source/WTF/wtf/PlatformGTK.cmake
+@@ -33,6 +33,7 @@ if (WIN32)
+         win/PathWalker.cpp
+         win/SignalsWin.cpp
+         win/ThreadingWin.cpp
++        win/WTFCRTDebug.cpp
+         win/Win32Handle.cpp
+     )
+ 
+@@ -88,6 +89,7 @@ if (WIN32)
+         win/GDIObject.h
+         win/PathWalker.h
+         win/SoftLinking.h
++        win/WTFCRTDebug.h
+         win/Win32Handle.h
+     )
+ else ()
+diff --git a/Source/WTF/wtf/RunLoop.h b/Source/WTF/wtf/RunLoop.h
+index 4608779..a00d26e 100644
+--- a/Source/WTF/wtf/RunLoop.h
++++ b/Source/WTF/wtf/RunLoop.h
+@@ -129,7 +129,7 @@ public:
+     };
+ 
+ #if USE(GLIB_EVENT_LOOP)
+-    WTF_EXPORT_PRIVATE GMainContext* mainContext() const { return m_mainContext.get(); }
++    GMainContext* mainContext() const { return m_mainContext.get(); }
+ 
+     // Event observers (only used for PageTimelineAgent)
+     enum class Event : bool {

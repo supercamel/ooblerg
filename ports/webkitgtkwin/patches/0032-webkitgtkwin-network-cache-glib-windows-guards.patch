@@ -1,0 +1,59 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@ooblerg.local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: guard GLib network cache POSIX map APIs
+
+The GLib network cache implementation uses FileSystem::MappedFileData for the
+actual mapping, but still included sys/mman.h and asserted against MAP_FAILED.
+Keep those POSIX details out of the Windows build. The fd-backed
+SharedMemory::wrapMap path is also Unix-only, so return nullptr on Windows and
+let callers use the normal byte-transfer path until the cache can expose the
+Win32 mapping handle directly.
+---
+ Source/WebKit/NetworkProcess/cache/NetworkCacheDataGLib.cpp | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/Source/WebKit/NetworkProcess/cache/NetworkCacheDataGLib.cpp b/Source/WebKit/NetworkProcess/cache/NetworkCacheDataGLib.cpp
+index 69cfbf3..0362230 100644
+--- a/Source/WebKit/NetworkProcess/cache/NetworkCacheDataGLib.cpp
++++ b/Source/WebKit/NetworkProcess/cache/NetworkCacheDataGLib.cpp
+@@ -30,12 +30,14 @@
+ 
+ #include <WebCore/SharedMemory.h>
+ #include <fcntl.h>
++#if !OS(WINDOWS)
+ #include <sys/mman.h>
+ #include <sys/stat.h>
+ #include <sys/types.h>
+ #include <unistd.h>
++#endif
+ 
+-#if !PLATFORM(WIN)
++#if !OS(WINDOWS)
+ #include <gio/gfiledescriptorbased.h>
+ #endif
+ 
+@@ -128,7 +130,9 @@ Data Data::adoptMap(FileSystem::MappedFileData&& mappedFile, FileSystem::FileHa
+     size_t size = mappedFile.size();
+     auto* map = mappedFile.span().data();
+     ASSERT(map);
++#if !OS(WINDOWS)
+     ASSERT(map != MAP_FAILED);
++#endif
+     MapWrapper* wrapper = new MapWrapper { WTF::move(mappedFile) };
+     return { adoptGRef(g_bytes_new_with_free_func(map, size, reinterpret_cast<GDestroyNotify>(deleteMapWrapper), wrapper)), WTF::move(fileHandle) };
+ }
+@@ -140,8 +144,12 @@ RefPtr<WebCore::SharedMemory> Data::tryCreateSharedMemory() const
+     if (isNull() || !isMap())
+         return nullptr;
+ 
++#if OS(WINDOWS)
++    return nullptr;
++#else
+     gsize length;
+     const auto* data = g_bytes_get_data(m_buffer.get(), &length);
+     return WebCore::SharedMemory::wrapMap(const_cast<void*>(data), length, m_fileHandle->platformHandle());
++#endif
+ }
+ 
+ } // namespace NetworkCache

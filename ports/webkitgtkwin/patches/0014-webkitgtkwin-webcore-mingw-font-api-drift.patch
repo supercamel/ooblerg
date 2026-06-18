@@ -1,0 +1,158 @@
+--- a/Source/WebCore/platform/graphics/FontCache.h
++++ b/Source/WebCore/platform/graphics/FontCache.h
+@@ -96,11 +96,11 @@
+ 
+ enum class IsForPlatformFont : bool;
+ 
+-#if PLATFORM(WIN) && USE(IMLANG_FONT_LINK2)
++#if OS(WINDOWS) && USE(IMLANG_FONT_LINK2)
+ using IMLangFontLinkType = IMLangFontLink2;
+ #endif
+ 
+-#if PLATFORM(WIN) && !USE(IMLANG_FONT_LINK2)
++#if OS(WINDOWS) && !USE(IMLANG_FONT_LINK2)
+ using IMLangFontLinkType = IMLangFontLink;
+ #endif
+ 
+@@ -143,7 +143,7 @@
+     WEBCORE_EXPORT static void setFontAllowlist(const Vector<String>&);
+ #endif
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS)
+     IMLangFontLinkType* getFontLinkInterface();
+     static void comInitialize();
+     static void comUninitialize();
+@@ -184,6 +184,6 @@
+     void updateFontCascade(const FontCascade&);
+ 
+-#if PLATFORM(WIN)
++#if OS(WINDOWS)
+     RefPtr<Font> fontFromDescriptionAndLogFont(const FontDescription&, const LOGFONT&, String& outFontFamilyName);
+ #endif
+ 
+--- a/Source/WebCore/platform/graphics/win/ComplexTextControllerUniscribe.cpp
++++ b/Source/WebCore/platform/graphics/win/ComplexTextControllerUniscribe.cpp
+@@ -46,7 +46,7 @@
+ 
+     do {
+         shapeResult = ScriptShape(hdc, fontData->scriptCache(), wcharFrom(str), len, glyphs.size(), &item.a,
+-            glyphs.data(), clusters.data(), visualAttributes.data(), &glyphCount);
++            glyphs.mutableSpan().data(), clusters.mutableSpan().data(), visualAttributes.mutableSpan().data(), &glyphCount);
+         if (shapeResult == E_PENDING) {
+             // The script cache isn't primed with enough info yet. We need to select our HFONT into
+             // a DC and pass the DC in to ScriptShape.
+@@ -87,7 +87,7 @@
+     }
+ 
+     BidiRange(Vector<T>& data LIFETIME_BOUND, bool isLTR)
+-        : m_data(data.data())
++        : m_data(data.mutableSpan().data())
+         , m_length(data.size())
+         , m_isLTR(isLTR)
+     {
+@@ -188,7 +188,7 @@
+         state.fOverrideDirection = m_run->directionalOverride();
+ 
+         // ScriptItemize may write (cMaxItems + 1) SCRIPT_ITEM.
+-        HRESULT hr = ScriptItemize(wcharFrom(cp.data()), cp.size(), items.size() - 1, &control, &state, items.data(), &numItems);
++        HRESULT hr = ScriptItemize(wcharFrom(cp.data()), cp.size(), items.size() - 1, &control, &state, items.mutableSpan().data(), &numItems);
+         if (hr != E_OUTOFMEMORY) {
+             ASSERT(SUCCEEDED(hr));
+             break;
+@@ -223,16 +223,16 @@
+         Vector<int> advances;
+         offsets.resize(glyphs.size());
+         advances.resize(glyphs.size());
+-        HRESULT placeResult = ScriptPlace(0, font->scriptCache(), glyphs.data(), glyphs.size(), visualAttributes.data(),
+-            &item.a, advances.data(), offsets.data(), 0);
++        HRESULT placeResult = ScriptPlace(0, font->scriptCache(), glyphs.mutableSpan().data(), glyphs.size(), visualAttributes.mutableSpan().data(),
++            &item.a, advances.mutableSpan().data(), offsets.mutableSpan().data(), 0);
+         if (placeResult == E_PENDING) {
+             // The script cache isn't primed with enough info yet. We need to select our HFONT into
+             // a DC and pass the DC in to ScriptPlace.
+             HWndDC hdc(0);
+             HFONT hfont = font->platformData().hfont();
+             HGDIOBJ oldFont = SelectObject(hdc, hfont);
+-            placeResult = ScriptPlace(hdc, font->scriptCache(), glyphs.data(), glyphs.size(), visualAttributes.data(),
+-                &item.a, advances.data(), offsets.data(), 0);
++            placeResult = ScriptPlace(hdc, font->scriptCache(), glyphs.mutableSpan().data(), glyphs.size(), visualAttributes.mutableSpan().data(),
++                &item.a, advances.mutableSpan().data(), offsets.mutableSpan().data(), 0);
+             SelectObject(hdc, oldFont);
+         }
+ 
+--- a/Source/WebCore/platform/graphics/win/FontCacheWin.cpp
++++ b/Source/WebCore/platform/graphics/win/FontCacheWin.cpp
+@@ -57,7 +57,11 @@
+ 
+     static IMLangFontLinkType* langFontLink;
+     if (!langFontLink) {
+-        if (multiLanguage->QueryInterface(&langFontLink) != S_OK)
++#if USE(IMLANG_FONT_LINK2)
++        if (multiLanguage->QueryInterface(IID_IMLangFontLink2, reinterpret_cast<void**>(&langFontLink)) != S_OK)
++#else
++        if (multiLanguage->QueryInterface(IID_IMLangFontLink, reinterpret_cast<void**>(&langFontLink)) != S_OK)
++#endif
+             return 0;
+     }
+ 
+@@ -111,16 +115,16 @@
+         return result;
+ 
+     DWORD linkedFontsBufferSize = 0;
+-    if (::RegQueryValueEx(fontLinkKey, family.wideCharacters().data(), 0, nullptr, nullptr, &linkedFontsBufferSize) == ERROR_FILE_NOT_FOUND) {
++    if (::RegQueryValueEx(fontLinkKey, family.wideCharacters().span().data(), 0, nullptr, nullptr, &linkedFontsBufferSize) == ERROR_FILE_NOT_FOUND) {
+         WTFLogAlways("The font link key %s does not exist in the registry.", family.utf8().data());
+         return result;
+     }
+ 
+     static const constexpr unsigned InitialBufferSize { 256 / sizeof(WCHAR) };
+     Vector<WCHAR, InitialBufferSize> linkedFonts(roundUpToMultipleOf<sizeof(WCHAR)>(linkedFontsBufferSize) / sizeof(WCHAR));
+-    if (::RegQueryValueEx(fontLinkKey, family.wideCharacters().data(), 0, nullptr, reinterpret_cast<BYTE*>(linkedFonts.data()), &linkedFontsBufferSize) == ERROR_SUCCESS) {
++    if (::RegQueryValueEx(fontLinkKey, family.wideCharacters().span().data(), 0, nullptr, reinterpret_cast<BYTE*>(linkedFonts.mutableSpan().data()), &linkedFontsBufferSize) == ERROR_SUCCESS) {
+         unsigned length = linkedFontsBufferSize / sizeof(WCHAR);
+-        appendLinkedFonts(linkedFonts.data(), length, result);
++        appendLinkedFonts(linkedFonts.mutableSpan().data(), length, result);
+     }
+     RegCloseKey(fontLinkKey);
+     return result;
+@@ -195,7 +199,7 @@
+ 
+     static Vector<char, 512> glyphsetBuffer;
+     glyphsetBuffer.resize(GetFontUnicodeRanges(hdc, 0));
+-    GLYPHSET* glyphset = reinterpret_cast<GLYPHSET*>(glyphsetBuffer.data());
++    GLYPHSET* glyphset = reinterpret_cast<GLYPHSET*>(glyphsetBuffer.mutableSpan().data());
+     GetFontUnicodeRanges(hdc, glyphset);
+ 
+     // FIXME: Change this to a binary search.
+--- a/Source/WebCore/platform/graphics/win/FontPlatformDataWin.cpp
++++ b/Source/WebCore/platform/graphics/win/FontPlatformDataWin.cpp
+@@ -52,7 +52,7 @@
+     RefPtr<SharedBuffer> buffer;
+     if (size != GDI_ERROR) {
+         Vector<uint8_t> data(size);
+-        DWORD result = GetFontData(hdc, table, 0, (PVOID)data.data(), size);
++        DWORD result = GetFontData(hdc, table, 0, (PVOID)data.mutableSpan().data(), size);
+         ASSERT_UNUSED(result, result == size);
+         buffer = SharedBuffer::create(WTF::move(data));
+     }
+@@ -65,7 +65,7 @@
+ {
+     LOGFONT logFont = data.m_font;
+     if (custom)
+-        wcscpy_s(logFont.lfFaceName, LF_FACESIZE, custom->name.wideCharacters().data());
++        wcscpy_s(logFont.lfFaceName, LF_FACESIZE, custom->name.wideCharacters().span().data());
+ 
+     auto gdiFont = adoptGDIObject(CreateFontIndirect(&logFont));
+     return FontPlatformData(WTF::move(gdiFont), data.m_size, data.m_syntheticBold, data.m_syntheticOblique, custom);
+--- a/Source/WebCore/platform/graphics/win/cairo/FontCustomPlatformDataWinCairo.cpp
++++ b/Source/WebCore/platform/graphics/win/cairo/FontCustomPlatformDataWinCairo.cpp
+@@ -36,7 +36,7 @@
+ 
+     LOGFONT logFont;
+     memset(&logFont, 0, sizeof(LOGFONT));
+-    wcsncpy(logFont.lfFaceName, name.wideCharacters().data(), LF_FACESIZE - 1);
++    wcsncpy(logFont.lfFaceName, name.wideCharacters().span().data(), LF_FACESIZE - 1);
+ 
+     logFont.lfHeight = -size * cWindowsFontScaleFactor;
+     logFont.lfWidth = 0;

@@ -1,0 +1,84 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: bootstrap WebCore accessibility on MinGW
+
+GTK on Windows does not have an AT-SPI wrapper in this build, so the generic
+AXCoreObject wrapper helpers need a no-wrapper fallback. Also keep MinGW
+libintl's printf/vprintf macros from leaking out of WebCore localization
+headers and rewriting WTF print member names in later includes.
+---
+ Source/WebCore/accessibility/AXCoreObject.h | 22 +++++++++++++++++++---
+ Source/WebCore/platform/LocalizedStrings.h |  4 ++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/Source/WebCore/accessibility/AXCoreObject.h b/Source/WebCore/accessibility/AXCoreObject.h
+index 0e95b2c498b0..eac676f11c8d 100644
+--- a/Source/WebCore/accessibility/AXCoreObject.h
++++ b/Source/WebCore/accessibility/AXCoreObject.h
+@@ -82,6 +82,10 @@ typedef WebCore::AccessibilityObjectAtspi AccessibilityObjectWrapper;
+ class AccessibilityObjectWrapper;
+ #endif
+ 
++#if PLATFORM(COCOA) || PLATFORM(WIN) || PLATFORM(PLAYSTATION) || PLATFORM(HAIKU) || USE(ATSPI)
++#define AX_CORE_OBJECT_HAS_WRAPPER 1
++#endif
++
+ namespace WTF {
+ class TextStream;
+ }
+@@ -1271,11 +1275,25 @@ public:
+     virtual void mathPrescripts(AccessibilityMathMultiscriptPairs&) = 0;
+     virtual void mathPostscripts(AccessibilityMathMultiscriptPairs&) = 0;
+ 
+-    AccessibilityObjectWrapper* wrapper() const { return m_wrapper.get(); }
++    AccessibilityObjectWrapper* wrapper() const
++    {
++#if defined(AX_CORE_OBJECT_HAS_WRAPPER)
++        return m_wrapper.get();
++#else
++        return nullptr;
++#endif
++    }
+ #if PLATFORM(COCOA)
+     WEBCORE_EXPORT RetainPtr<AccessibilityObjectWrapper> protectedWrapper() const;
+ #endif
+-    void setWrapper(AccessibilityObjectWrapper* wrapper) { m_wrapper = wrapper; }
++    void setWrapper(AccessibilityObjectWrapper* wrapper)
++    {
++#if defined(AX_CORE_OBJECT_HAS_WRAPPER)
++        m_wrapper = wrapper;
++#else
++        UNUSED_PARAM(wrapper);
++#endif
++    }
+     void detachWrapper(AccessibilityDetachmentType);
+ 
+ #if PLATFORM(IOS_FAMILY)
+@@ -1491,7 +1509,9 @@ inline void AXCoreObject::detach(AccessibilityDetachmentType detachmentType)
+ inline void AXCoreObject::detachWrapper(AccessibilityDetachmentType detachmentType)
+ {
+     detachPlatformWrapper(detachmentType);
++#if defined(AX_CORE_OBJECT_HAS_WRAPPER)
+     m_wrapper = nullptr;
++#endif
+ }
+ 
+ inline Vector<AXID> AXCoreObject::childrenIDs(bool updateChildrenIfNeeded)
+diff --git a/Source/WebCore/platform/LocalizedStrings.h b/Source/WebCore/platform/LocalizedStrings.h
+index dfe4f3b4898a..3630298a0f3d 100644
+--- a/Source/WebCore/platform/LocalizedStrings.h
++++ b/Source/WebCore/platform/LocalizedStrings.h
+@@ -36,6 +36,10 @@
+ 
+ #if USE(GLIB) && defined(GETTEXT_PACKAGE)
+ #include <glib/gi18n-lib.h>
++#if defined(__MINGW32__)
++#undef printf
++#undef vprintf
++#endif
+ #endif
+ 
+ namespace WebCore {
+-- 
+2.43.0

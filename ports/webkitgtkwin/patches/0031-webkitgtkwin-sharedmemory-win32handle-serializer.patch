@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@ooblerg.local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: qualify SharedMemory Win32 handle serializer
+
+The SharedMemory handle serializer uses a Win32Handle member on Windows.
+Teach the serializer schema the real WTF namespace and header location so the
+generated serializer includes <wtf/win/Win32Handle.h> instead of inventing
+<wtf/Win32Handle.h>.
+---
+ Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in b/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in
+index 578bc02..32924e9 100644
+--- a/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in
++++ b/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in
+@@ -2580,6 +2580,9 @@ headers: <wtf/unix/UnixFileDescriptor.h> "ArgumentCodersUnix.h"
+ #if OS(DARWIN)
+ header: <wtf/MachSendRight.h>
+ #endif
++#if OS(WINDOWS)
++header: <wtf/win/Win32Handle.h>
++#endif
+ 
+ [CustomHeader, RValue, WebKitPlatform] class WebCore::SharedMemoryHandle {
+ #if USE(UNIX_DOMAIN_SOCKETS)
+@@ -2589,7 +2592,7 @@ header: <wtf/MachSendRight.h>
+     [Validator='!!m_handle && *m_handle'] MachSendRight m_handle;
+ #endif
+ #if OS(WINDOWS)
+-    [Validator='!!m_handle && *m_handle'] Win32Handle m_handle;
++    [Validator='!!m_handle && *m_handle'] WTF::Win32Handle m_handle;
+ #endif
+     uint64_t m_size;
+ };

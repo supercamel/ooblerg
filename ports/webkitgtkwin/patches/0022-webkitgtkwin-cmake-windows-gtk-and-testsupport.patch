@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: keep Windows GTK CMake inputs target-only
+
+Do not resolve GTK's unix-print component on Windows, since pkg-config can
+find the host Linux module and inject /usr/include into MinGW compilations.
+Also compile WebCoreTestSupport with the same static WebCore export view used
+by WebKit in the GTK Windows object-library build.
+---
+--- a/Source/cmake/OptionsGTK.cmake
++++ b/Source/cmake/OptionsGTK.cmake
+@@ -177,7 +177,12 @@
+ else ()
+     set(GTK_MINIMUM_VERSION 3.22.0)
+     set(GTK_PC_NAME gtk+-3.0)
+ endif ()
+-find_package(GTK ${GTK_MINIMUM_VERSION} REQUIRED OPTIONAL_COMPONENTS unix-print)
++if (WIN32)
++    find_package(GTK ${GTK_MINIMUM_VERSION} REQUIRED)
++    set(GTK_UNIX_PRINT_FOUND FALSE)
++else ()
++    find_package(GTK ${GTK_MINIMUM_VERSION} REQUIRED OPTIONAL_COMPONENTS unix-print)
++endif ()
+ 
+ if (ENABLE_QUARTZ_TARGET AND NOT ${GTK_SUPPORTS_QUARTZ})
+     set(ENABLE_QUARTZ_TARGET OFF)
+--- a/Source/WebCore/CMakeLists.txt
++++ b/Source/WebCore/CMakeLists.txt
+@@ -2744,6 +2744,9 @@
+ list(APPEND WebCoreTestSupport_LIBRARIES ${WebCore_LIBRARIES})
+ list(APPEND WebCoreTestSupport_PRIVATE_LIBRARIES ${WebCore_PRIVATE_LIBRARIES})
+ list(APPEND WebCoreTestSupport_DEPENDENCIES WebCore)
++if (WIN32)
++    list(APPEND WebCoreTestSupport_PRIVATE_DEFINITIONS STATICALLY_LINKED_WITH_WebCore)
++endif ()
+ 
+ MAKE_HASH_TOOLS(${WEBCORE_DIR}/platform/ColorData)
+ list(APPEND WebCore_SOURCES ${WebCore_DERIVED_SOURCES_DIR}/ColorData.cpp)
+-- 
+2.43.0

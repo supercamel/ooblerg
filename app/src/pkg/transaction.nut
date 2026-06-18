@@ -1,0 +1,12 @@
+local Sysroot = import("../sysroot/install.nut")
+
+function apply(index, status, source_uri, plan, logger = null) {
+    local tx = Sysroot.SysrootTransaction(index, status, source_uri, logger)
+    if (plan.action == "install") return tx.install(plan)
+    if (plan.action == "remove") return tx.remove(plan)
+    throw "unsupported transaction action: " + plan.action
+}
+
+return {
+    apply = apply,
+}

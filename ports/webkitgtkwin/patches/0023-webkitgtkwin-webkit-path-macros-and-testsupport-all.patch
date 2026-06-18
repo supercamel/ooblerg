@@ -1,0 +1,126 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: avoid DATADIR collision and skip test support
+
+The Windows SDK defines a COM DATADIR type in objidl.h. The GTK port's
+global -DDATADIR string macro rewrites that header when building WebKit
+sources that include windows.h. Use WebKitGTK-prefixed install path macros
+in the GTK implementation and only keep the legacy unprefixed macros on
+non-Windows builds.
+
+WebCoreTestSupport is test-only and MinGW GCC ICEs in its generated JS
+bindings. Keep it available as an explicit target but remove it from the
+default Windows artifact build.
+---
+--- a/Source/WebKit/PlatformGTK.cmake
++++ b/Source/WebKit/PlatformGTK.cmake
+@@ -35,11 +35,18 @@
+     )
+ endif ()
+ 
+-add_definitions(-DPKGLIBEXECDIR="${LIBEXEC_INSTALL_DIR}")
+-add_definitions(-DLOCALEDIR="${CMAKE_INSTALL_FULL_LOCALEDIR}")
+-add_definitions(-DDATADIR="${CMAKE_INSTALL_FULL_DATADIR}")
+-add_definitions(-DLIBDIR="${LIB_INSTALL_DIR}")
+-add_definitions(-DPKGLIBDIR="${LIB_INSTALL_DIR}/webkit${WEBKITGTK_API_INFIX}gtk-${WEBKITGTK_API_VERSION}")
++add_definitions(-DWEBKITGTK_PKGLIBEXECDIR="${LIBEXEC_INSTALL_DIR}")
++add_definitions(-DWEBKITGTK_LOCALEDIR="${CMAKE_INSTALL_FULL_LOCALEDIR}")
++add_definitions(-DWEBKITGTK_DATADIR="${CMAKE_INSTALL_FULL_DATADIR}")
++add_definitions(-DWEBKITGTK_LIBDIR="${LIB_INSTALL_DIR}")
++add_definitions(-DWEBKITGTK_PKGLIBDIR="${LIB_INSTALL_DIR}/webkit${WEBKITGTK_API_INFIX}gtk-${WEBKITGTK_API_VERSION}")
++if (NOT WIN32)
++    add_definitions(-DPKGLIBEXECDIR="${LIBEXEC_INSTALL_DIR}")
++    add_definitions(-DLOCALEDIR="${CMAKE_INSTALL_FULL_LOCALEDIR}")
++    add_definitions(-DDATADIR="${CMAKE_INSTALL_FULL_DATADIR}")
++    add_definitions(-DLIBDIR="${LIB_INSTALL_DIR}")
++    add_definitions(-DPKGLIBDIR="${LIB_INSTALL_DIR}/webkit${WEBKITGTK_API_INFIX}gtk-${WEBKITGTK_API_VERSION}")
++endif ()
+ 
+ if (NOT DEVELOPER_MODE AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+     WEBKIT_ADD_TARGET_PROPERTIES(WebKit LINK_FLAGS "-Wl,--version-script,${CMAKE_CURRENT_SOURCE_DIR}/webkitglib-symbols.map")
+--- a/Source/WebKit/UIProcess/API/glib/WebKitWebContext.cpp
++++ b/Source/WebKit/UIProcess/API/glib/WebKitWebContext.cpp
+@@ -350,7 +350,7 @@
+     if (bundleDirectory && g_file_test(bundleDirectory, G_FILE_TEST_IS_DIR))
+         return bundleDirectory;
+ 
+-    static const char* injectedBundlePath = PKGLIBDIR G_DIR_SEPARATOR_S "injected-bundle" G_DIR_SEPARATOR_S;
++    static const char* injectedBundlePath = WEBKITGTK_PKGLIBDIR G_DIR_SEPARATOR_S "injected-bundle" G_DIR_SEPARATOR_S;
+     return injectedBundlePath;
+ }
+ 
+@@ -519,7 +519,7 @@
+ 
+     GObjectClass* gObjectClass = G_OBJECT_CLASS(webContextClass);
+ 
+-    bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR);
++    bindtextdomain(GETTEXT_PACKAGE, WEBKITGTK_LOCALEDIR);
+     bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+ 
+     s_serviceWorkerNotificationProvider = makeUnique<WebKitNotificationProvider>(&WebNotificationManagerProxy::serviceWorkerManagerSingleton(), nullptr);
+--- a/Source/WebKit/Shared/glib/ProcessExecutablePathGLib.cpp
++++ b/Source/WebKit/Shared/glib/ProcessExecutablePathGLib.cpp
+@@ -60,7 +60,7 @@
+     }
+ #endif
+ 
+-    return FileSystem::pathByAppendingComponent(FileSystem::stringFromFileSystemRepresentation(PKGLIBEXECDIR), StringView::fromLatin1(processName));
++    return FileSystem::pathByAppendingComponent(FileSystem::stringFromFileSystemRepresentation(WEBKITGTK_PKGLIBEXECDIR), StringView::fromLatin1(processName));
+ }
+ 
+ String executablePathOfWebProcess()
+--- a/Source/WebKit/WebProcess/gtk/WebProcessMainGtk.cpp
++++ b/Source/WebKit/WebProcess/gtk/WebProcessMainGtk.cpp
+@@ -91,7 +91,7 @@
+         if (!setlocale(LC_ALL, ""))
+             g_warning("Locale not supported by C library.\n\tUsing the fallback 'C' locale.");
+ 
+-        bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR);
++        bindtextdomain(GETTEXT_PACKAGE, WEBKITGTK_LOCALEDIR);
+         bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+ 
+         return true;
+--- a/Source/WebKit/UIProcess/Launcher/glib/BubblewrapLauncher.cpp
++++ b/Source/WebKit/UIProcess/Launcher/glib/BubblewrapLauncher.cpp
+@@ -803,14 +803,14 @@
+ 
+         "--ro-bind-try", "/usr/share", "/usr/share",
+         "--ro-bind-try", "/usr/local/share", "/usr/local/share",
+-        "--ro-bind-try", DATADIR, DATADIR,
++        "--ro-bind-try", WEBKITGTK_DATADIR, WEBKITGTK_DATADIR,
+ 
+         // We only grant access to the libdirs webkit is built with and
+         // guess system libdirs. This will always have some edge cases.
+         "--ro-bind-try", "/lib", "/lib",
+         "--ro-bind-try", "/usr/lib", "/usr/lib",
+         "--ro-bind-try", "/usr/local/lib", "/usr/local/lib",
+-        "--ro-bind-try", LIBDIR, LIBDIR,
++        "--ro-bind-try", WEBKITGTK_LIBDIR, WEBKITGTK_LIBDIR,
+ #if CPU(ADDRESS64)
+         "--ro-bind-try", "/lib64", "/lib64",
+         "--ro-bind-try", "/usr/lib64", "/usr/lib64",
+@@ -821,7 +821,7 @@
+         "--ro-bind-try", "/usr/local/lib32", "/usr/local/lib32",
+ #endif
+ 
+-        "--ro-bind-try", PKGLIBEXECDIR, PKGLIBEXECDIR,
++        "--ro-bind-try", WEBKITGTK_PKGLIBEXECDIR, WEBKITGTK_PKGLIBEXECDIR,
+     };
+ 
+     if (enableDebugPermissions()) {
+--- a/Source/WebCore/CMakeLists.txt
++++ b/Source/WebCore/CMakeLists.txt
+@@ -3143,6 +3143,10 @@
+ 
+ WEBKIT_LIBRARY(WebCoreTestSupport)
+ 
++if (WIN32)
++    set_target_properties(WebCoreTestSupport PROPERTIES EXCLUDE_FROM_ALL TRUE)
++endif ()
++
+ if (${WebCore_LIBRARY_TYPE} MATCHES "SHARED")
+     set_target_properties(WebCore PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+     install(TARGETS WebCore DESTINATION "${LIB_INSTALL_DIR}")
+-- 
+2.43.0

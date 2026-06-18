@@ -1,0 +1,504 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WebKitGTKWin Port <webkitgtkwin@local>
+Date: Wed, 17 Jun 2026 00:00:00 +0000
+Subject: [PATCH] WebKitGTKWin: null EGL backend for GTK on Windows
+
+MinGW libepoxy is built with WGL headers, not EGL headers. Keep the EGL-oriented WebCore display interfaces available for the GTK port, but make the Windows GTK implementation fail closed until a real WGL or ANGLE backend is wired in. Also cast the WOFF sfnt offset to the 32-bit field width before calling htonl, avoiding MinGW winsock overload ambiguity.
+---
+--- a/Source/WebCore/platform/graphics/WOFFFileFormat.cpp
++++ b/Source/WebCore/platform/graphics/WOFFFileFormat.cpp
+@@ -264,7 +264,7 @@
+         WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
+         *sfntTableDirectoryPtr++ = htonl(tableTag);
+         *sfntTableDirectoryPtr++ = htonl(tableOrigChecksum);
+-        *sfntTableDirectoryPtr++ = htonl(sfnt.size());
++        *sfntTableDirectoryPtr++ = htonl(static_cast<uint32_t>(sfnt.size()));
+         *sfntTableDirectoryPtr++ = htonl(tableOrigLength);
+         sfntTableDirectoryCursor += 4 * sizeof(uint32_t);
+ 
+--- a/Source/WebCore/platform/graphics/PlatformDisplay.cpp
++++ b/Source/WebCore/platform/graphics/PlatformDisplay.cpp
+@@ -37,6 +37,85 @@
+ #include "PlatformDisplayWin.h"
+ #endif
+ 
++#if OS(WINDOWS) && PLATFORM(GTK)
++
++namespace WebCore {
++
++WTF_MAKE_TZONE_ALLOCATED_IMPL(PlatformDisplay);
++
++IGNORE_CLANG_WARNINGS_BEGIN("exit-time-destructors")
++static std::unique_ptr<PlatformDisplay> s_sharedDisplay;
++IGNORE_CLANG_WARNINGS_END
++
++void PlatformDisplay::setSharedDisplay(std::unique_ptr<PlatformDisplay>&& display)
++{
++    RELEASE_ASSERT(!s_sharedDisplay);
++    s_sharedDisplay = WTF::move(display);
++}
++
++PlatformDisplay& PlatformDisplay::sharedDisplay()
++{
++    RELEASE_ASSERT(s_sharedDisplay);
++    return *s_sharedDisplay;
++}
++
++PlatformDisplay* PlatformDisplay::sharedDisplayIfExists()
++{
++    return s_sharedDisplay.get();
++}
++
++PlatformDisplay::PlatformDisplay(Ref<GLDisplay>&& glDisplay)
++    : m_eglDisplay(WTF::move(glDisplay))
++{
++}
++
++PlatformDisplay::~PlatformDisplay() = default;
++
++GLContext* PlatformDisplay::sharingGLContext()
++{
++    return nullptr;
++}
++
++void PlatformDisplay::clearGLContexts()
++{
++    m_sharingGLContext = nullptr;
++}
++
++EGLDisplay PlatformDisplay::eglDisplay() const
++{
++    return nullptr;
++}
++
++bool PlatformDisplay::eglCheckVersion(int, int) const
++{
++    return false;
++}
++
++const GLDisplay::Extensions& PlatformDisplay::eglExtensions() const
++{
++    return m_eglDisplay->extensions();
++}
++
++void PlatformDisplay::terminateEGLDisplay()
++{
++    clearGLContexts();
++    m_eglDisplay->terminate();
++}
++
++EGLImage PlatformDisplay::createEGLImage(EGLContext, EGLenum, EGLClientBuffer, const Vector<EGLAttrib>&) const
++{
++    return nullptr;
++}
++
++bool PlatformDisplay::destroyEGLImage(EGLImage) const
++{
++    return false;
++}
++
++} // namespace WebCore
++
++#else
++
+ #if USE(LIBEPOXY)
+ #include <epoxy/egl.h>
+ #else
+@@ -186,3 +265,5 @@
+ #endif // USE(GBM) && USE(GSTREAMER)
+ 
+ } // namespace WebCore
++
++#endif // OS(WINDOWS) && PLATFORM(GTK)
+--- a/Source/WebCore/platform/graphics/egl/GLDisplay.cpp
++++ b/Source/WebCore/platform/graphics/egl/GLDisplay.cpp
+@@ -27,6 +27,44 @@
+ #include <wtf/MainThread.h>
+ #include <wtf/text/StringView.h>
+ 
++#if OS(WINDOWS) && PLATFORM(GTK)
++
++namespace WebCore {
++
++RefPtr<GLDisplay> GLDisplay::create(EGLDisplay)
++{
++    return nullptr;
++}
++
++GLDisplay::GLDisplay(EGLDisplay eglDisplay)
++    : m_display(eglDisplay)
++{
++}
++
++void GLDisplay::terminate()
++{
++    m_display = nullptr;
++}
++
++bool GLDisplay::checkVersion(int, int) const
++{
++    return false;
++}
++
++EGLImage GLDisplay::createImage(EGLContext, EGLenum, EGLClientBuffer, const Vector<EGLAttrib>&) const
++{
++    return nullptr;
++}
++
++bool GLDisplay::destroyImage(EGLImage) const
++{
++    return false;
++}
++
++} // namespace WebCore
++
++#else
++
+ #if USE(LIBEPOXY)
+ #include <epoxy/egl.h>
+ #else
+@@ -287,3 +325,5 @@
+ #endif // OS(ANDROID)
+ 
+ } // namespace WebCore
++
++#endif // OS(WINDOWS) && PLATFORM(GTK)
+--- a/Source/WebCore/platform/graphics/egl/GLContext.cpp
++++ b/Source/WebCore/platform/graphics/egl/GLContext.cpp
+@@ -27,6 +27,205 @@
+ #include <wtf/Vector.h>
+ #include <wtf/text/StringToIntegerConversion.h>
+ 
++#if OS(WINDOWS) && PLATFORM(GTK)
++
++namespace WebCore {
++
++WTF_MAKE_TZONE_ALLOCATED_IMPL(GLContext);
++
++const char* GLContext::errorString(int)
++{
++    return "EGL is not available in the WebKitGTKWin null GL backend";
++}
++
++const char* GLContext::lastErrorString()
++{
++    return errorString(0);
++}
++
++bool GLContext::getEGLConfig(EGLDisplay, EGLConfig*, int)
++{
++    return false;
++}
++
++std::unique_ptr<GLContext> GLContext::createWindowContext(GLDisplay&, Target, GLNativeWindowType, EGLContext)
++{
++    return nullptr;
++}
++
++std::unique_ptr<GLContext> GLContext::createSurfacelessContext(GLDisplay&, Target, EGLContext)
++{
++    return nullptr;
++}
++
++std::unique_ptr<GLContext> GLContext::createPbufferContext(GLDisplay&, EGLContext)
++{
++    return nullptr;
++}
++
++std::unique_ptr<GLContext> GLContext::createOffscreenContext(GLDisplay&, Target, EGLContext)
++{
++    return nullptr;
++}
++
++std::unique_ptr<GLContext> GLContext::create(GLDisplay&, Target, GLContext*, GLNativeWindowType)
++{
++    return nullptr;
++}
++
++std::unique_ptr<GLContext> GLContext::create(PlatformDisplay&, GLNativeWindowType)
++{
++    return nullptr;
++}
++
++std::unique_ptr<GLContext> GLContext::createOffscreen(PlatformDisplay&)
++{
++    return nullptr;
++}
++
++std::unique_ptr<GLContext> GLContext::createSharing(PlatformDisplay&)
++{
++    return nullptr;
++}
++
++GLContext::GLContext(GLDisplay& display, EGLContext context, EGLSurface surface, EGLConfig config)
++    : m_display(display)
++    , m_context(context)
++    , m_surface(surface)
++    , m_config(config)
++{
++}
++
++GLContext::~GLContext() = default;
++
++RefPtr<GLDisplay> GLContext::display() const
++{
++    return m_display.get();
++}
++
++EGLContext GLContext::createContextForEGLVersion(EGLDisplay, EGLConfig, EGLContext)
++{
++    return nullptr;
++}
++
++bool GLContext::makeCurrentImpl()
++{
++    return false;
++}
++
++bool GLContext::unmakeCurrentImpl()
++{
++    return true;
++}
++
++unsigned GLContext::glVersion() const
++{
++    return 0;
++}
++
++bool GLContext::makeContextCurrent()
++{
++    return false;
++}
++
++bool GLContext::unmakeContextCurrent()
++{
++    return true;
++}
++
++GLContext* GLContext::current()
++{
++    return nullptr;
++}
++
++void GLContext::swapBuffers()
++{
++}
++
++GCGLContext GLContext::platformContext() const
++{
++    return nullptr;
++}
++
++bool GLContext::isExtensionSupported(const char*, const char*)
++{
++    return false;
++}
++
++unsigned GLContext::versionFromString(const char*)
++{
++    return 0;
++}
++
++unsigned GLContext::version() const
++{
++    return 0;
++}
++
++const GLContext::GLExtensions& GLContext::glExtensions() const
++{
++    return m_glExtensions;
++}
++
++GLContext::ScopedGLContext::ScopedGLContext(std::unique_ptr<GLContext>&& context)
++    : m_context(WTF::move(context))
++{
++    if (m_context)
++        m_context->makeContextCurrent();
++}
++
++GLContext::ScopedGLContext::~ScopedGLContext()
++{
++    m_context = nullptr;
++}
++
++GLContext::ScopedGLContextCurrent::ScopedGLContextCurrent(GLContext& context)
++    : m_context(context)
++{
++    m_context.makeContextCurrent();
++}
++
++GLContext::ScopedGLContextCurrent::~ScopedGLContextCurrent()
++{
++    m_context.unmakeContextCurrent();
++}
++
++#if ENABLE(MEDIA_TELEMETRY)
++EGLDisplay GLContext::eglDisplay() const
++{
++    return nullptr;
++}
++
++EGLConfig GLContext::eglConfig() const
++{
++    return nullptr;
++}
++
++EGLSurface GLContext::eglSurface() const
++{
++    return nullptr;
++}
++
++EGLContext GLContext::eglContext() const
++{
++    return nullptr;
++}
++
++unsigned GLContext::windowWidth() const
++{
++    return 0;
++}
++
++unsigned GLContext::windowHeight() const
++{
++    return 0;
++}
++#endif
++
++} // namespace WebCore
++
++#else
++
+ #if USE(LIBEPOXY)
+ #include <epoxy/egl.h>
+ #include <epoxy/gl.h>
+@@ -618,3 +817,5 @@
+ #endif
+ 
+ } // namespace WebCore
++
++#endif // OS(WINDOWS) && PLATFORM(GTK)
+--- a/Source/WebCore/platform/graphics/egl/GLFence.cpp
++++ b/Source/WebCore/platform/graphics/egl/GLFence.cpp
+@@ -27,6 +27,26 @@
+ #include "PlatformDisplay.h"
+ #include <wtf/TZoneMallocInlines.h>
+ 
++#if OS(WINDOWS) && PLATFORM(GTK)
++
++namespace WebCore {
++
++WTF_MAKE_TZONE_ALLOCATED_IMPL(GLFence);
++
++bool GLFence::isSupported(const GLDisplay&)
++{
++    return false;
++}
++
++std::unique_ptr<GLFence> GLFence::create(const GLDisplay&)
++{
++    return nullptr;
++}
++
++} // namespace WebCore
++
++#else
++
+ #if USE(LIBEPOXY)
+ #include <epoxy/gl.h>
+ #else
+@@ -116,3 +136,5 @@
+ #endif
+ 
+ } // namespace WebCore
++
++#endif // OS(WINDOWS) && PLATFORM(GTK)
+--- a/Source/WebCore/platform/graphics/egl/GLFenceEGL.cpp
++++ b/Source/WebCore/platform/graphics/egl/GLFenceEGL.cpp
+@@ -20,7 +20,7 @@
+ #include "config.h"
+ #include "GLFenceEGL.h"
+ 
+-#if HAVE(GL_FENCE)
++#if HAVE(GL_FENCE) && !(OS(WINDOWS) && PLATFORM(GTK))
+ #include "GLDisplay.h"
+ #include <wtf/Vector.h>
+ 
+@@ -144,4 +144,4 @@
+ 
+ } // namespace WebCore
+ 
+-#endif // HAVE(GL_FENCE)
++#endif // HAVE(GL_FENCE) && !(OS(WINDOWS) && PLATFORM(GTK))
+--- a/Source/WebCore/platform/graphics/egl/PlatformDisplayDefault.cpp
++++ b/Source/WebCore/platform/graphics/egl/PlatformDisplayDefault.cpp
+@@ -28,6 +28,26 @@
+ 
+ #if PLATFORM(GTK) || OS(ANDROID)
+ 
++#if OS(WINDOWS) && PLATFORM(GTK)
++
++namespace WebCore {
++
++std::unique_ptr<PlatformDisplayDefault> PlatformDisplayDefault::create()
++{
++    return nullptr;
++}
++
++PlatformDisplayDefault::PlatformDisplayDefault(Ref<GLDisplay>&& glDisplay)
++    : PlatformDisplay(WTF::move(glDisplay))
++{
++}
++
++PlatformDisplayDefault::~PlatformDisplayDefault() = default;
++
++} // namespace WebCore
++
++#else
++
+ #include "GLContext.h"
+ #include <epoxy/egl.h>
+ 
+@@ -59,4 +79,6 @@
+ 
+ } // namespace WebCore
+ 
++#endif // OS(WINDOWS) && PLATFORM(GTK)
++
+ #endif // PLATFORM(GTK) || OS(ANDROID)
+--- a/Source/WebCore/platform/graphics/egl/PlatformDisplaySurfaceless.cpp
++++ b/Source/WebCore/platform/graphics/egl/PlatformDisplaySurfaceless.cpp
+@@ -26,6 +26,26 @@
+ #include "config.h"
+ #include "PlatformDisplaySurfaceless.h"
+ 
++#if OS(WINDOWS) && PLATFORM(GTK)
++
++namespace WebCore {
++
++std::unique_ptr<PlatformDisplaySurfaceless> PlatformDisplaySurfaceless::create()
++{
++    return nullptr;
++}
++
++PlatformDisplaySurfaceless::PlatformDisplaySurfaceless(Ref<GLDisplay>&& glDisplay)
++    : PlatformDisplay(WTF::move(glDisplay))
++{
++}
++
++PlatformDisplaySurfaceless::~PlatformDisplaySurfaceless() = default;
++
++} // namespace WebCore
++
++#else
++
+ #include "GLContext.h"
+ #include <epoxy/egl.h>
+ 
+@@ -65,3 +85,5 @@
+ }
+ 
+ } // namespace WebCore
++
++#endif // OS(WINDOWS) && PLATFORM(GTK)
+-- 
+2.43.0

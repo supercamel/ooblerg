@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<repository version="1.2"
+            xmlns="http://www.gtk.org/introspection/core/1.0"
+            xmlns:c="http://www.gtk.org/introspection/c/1.0">
+  <c:include name="windows.h"/>
+  <namespace name="win32" version="1.0"
+             c:identifier-prefixes="WIN32,Win32"
+             c:symbol-prefixes="win32">
+    <record name="HANDLE" c:type="HANDLE" foreign="1"/>
+    <record name="HCURSOR" c:type="HCURSOR" foreign="1"/>
+    <record name="HDC" c:type="HDC" foreign="1"/>
+    <record name="HGLRC" c:type="HGLRC" foreign="1"/>
+    <record name="HICON" c:type="HICON" foreign="1"/>
+    <record name="HINSTANCE" c:type="HINSTANCE" foreign="1"/>
+    <record name="HMONITOR" c:type="HMONITOR" foreign="1"/>
+    <record name="HRGN" c:type="HRGN" foreign="1"/>
+    <record name="HWND" c:type="HWND" foreign="1"/>
+    <record name="MSG" c:type="MSG" foreign="1"/>
+    <record name="POINT" c:type="POINT" foreign="1"/>
+    <record name="RECT" c:type="RECT" foreign="1"/>
+  </namespace>
+</repository>

@@ -1,0 +1,26 @@
+diff --git a/Source/JavaScriptCore/runtime/JSExportMacros.h b/Source/JavaScriptCore/runtime/JSExportMacros.h
+index d9f9aae..61e2cdd 100644
+--- a/Source/JavaScriptCore/runtime/JSExportMacros.h
++++ b/Source/JavaScriptCore/runtime/JSExportMacros.h
+@@ -35,6 +35,8 @@
+ 
+ #if defined(BUILDING_JavaScriptCore) || defined(STATICALLY_LINKED_WITH_JavaScriptCore)
+ #define JS_EXPORT_PRIVATE WTF_EXPORT_DECLARATION
++#elif OS(WINDOWS) && COMPILER(GCC)
++#define JS_EXPORT_PRIVATE
+ #else
+ #define JS_EXPORT_PRIVATE WTF_IMPORT_DECLARATION
+ #endif
+diff --git a/Source/WTF/wtf/PlatformUse.h b/Source/WTF/wtf/PlatformUse.h
+index 6ed6eeb..5e2f41d 100644
+--- a/Source/WTF/wtf/PlatformUse.h
++++ b/Source/WTF/wtf/PlatformUse.h
+@@ -55,7 +55,7 @@
+ #define USE_GLIB 1
+ #endif
+ 
+-#if ((PLATFORM(GTK) || PLATFORM(WPE)) && !USE(SKIA))
++#if ((PLATFORM(GTK) || PLATFORM(WPE)) && !USE(SKIA) && !OS(WINDOWS))
+ #define USE_FREETYPE 1
+ #endif
+ 

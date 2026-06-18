@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+wrapper="${OOBLERG_EXE_WRAPPER:-wine}"
+winepath_parts=""
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+root_dir=$(dirname "$script_dir")
+dll_dirs="$root_dir/out/sysroot/mingw64/bin"
+
+if [ -n "${OOBLERG_DLL_DIRS:-}" ]; then
+  dll_dirs="$dll_dirs:$OOBLERG_DLL_DIRS"
+fi
+
+if [ -n "$dll_dirs" ]; then
+  old_ifs=$IFS
+  IFS=:
+  for dir in $dll_dirs; do
+    [ -n "$dir" ] || continue
+    [ -d "$dir" ] || continue
+    if command -v winepath >/dev/null 2>&1; then
+      win_dir=$(winepath -w "$dir" 2>/dev/null || printf '%s' "$dir")
+    else
+      win_dir=$dir
+    fi
+    winepath_parts="${winepath_parts:+$winepath_parts;}$win_dir"
+  done
+  IFS=$old_ifs
+fi
+
+if [ -n "${WINEPATH:-}" ]; then
+  winepath_parts="${winepath_parts:+$winepath_parts;}$WINEPATH"
+fi
+
+if [ -n "$winepath_parts" ]; then
+  export WINEPATH=$winepath_parts
+fi
+
+exec $wrapper "$@"

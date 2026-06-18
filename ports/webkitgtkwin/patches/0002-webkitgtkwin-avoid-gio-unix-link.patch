@@ -1,0 +1,26 @@
+diff --git a/Source/WebKit/PlatformGTK.cmake b/Source/WebKit/PlatformGTK.cmake
+index 1985f6a..0cfe3cb 100644
+--- a/Source/WebKit/PlatformGTK.cmake
++++ b/Source/WebKit/PlatformGTK.cmake
+@@ -52,10 +52,17 @@ list(APPEND WebKit_UNIFIED_SOURCE_LIST_FILES
+     "SourcesGTK.txt"
+ )
+ 
+-list(APPEND WebKit_LIBRARIES
+-    GLib::GioUnix
+-    GLib::Module
+-)
++if (WIN32)
++    list(APPEND WebKit_LIBRARIES
++        GLib::Gio
++        GLib::Module
++    )
++else ()
++    list(APPEND WebKit_LIBRARIES
++        GLib::GioUnix
++        GLib::Module
++    )
++endif ()
+ 
+ list(APPEND WebKit_MESSAGES_IN_FILES
+     UIProcess/ViewGestureController

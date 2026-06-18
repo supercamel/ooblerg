@@ -1,0 +1,37 @@
+{
+  "name": "Ooblerg Package Repository Server",
+  "app_id": "dev.ooblerg.pkgserver",
+  "desktop_terminal": true,
+  "desktop_categories": [
+    "Development"
+  ],
+  "script": "main.nut",
+  "target": "appimage",
+  "sqgi_source": {
+    "repo": "https://github.com/supercamel/sqgi.git",
+    "ref": "3a561e5bc4429283c39380898133f747cc26206f"
+  },
+  "linux": {
+    "arches": [
+      {
+        "arch": "x86_64",
+        "build_dir": "build-linux-x86_64",
+        "deb": {
+          "download": true,
+          "suite": "jammy",
+          "packages": [
+            "libsoup-3.0-0",
+            "gir1.2-soup-3.0",
+            "libglib2.0-0",
+            "libgirepository-1.0-1"
+          ]
+        },
+        "build": [
+          "cmake -E rm -rf \"$SQGI_LINUX_BUILD_DIR\"",
+          "cmake -S \"$SQGI_SOURCE_DIR\" -B \"$SQGI_LINUX_BUILD_DIR\" -G Ninja ${SQGI_LINUX_CMAKE_TOOLCHAIN:+-DCMAKE_TOOLCHAIN_FILE=\"$SQGI_LINUX_CMAKE_TOOLCHAIN\"} -DCMAKE_BUILD_TYPE=Release -DSQ_ENABLE_JIT=ON",
+          "cmake --build \"$SQGI_LINUX_BUILD_DIR\""
+        ]
+      }
+    ]
+  }
+}

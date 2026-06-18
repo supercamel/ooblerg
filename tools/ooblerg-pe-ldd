@@ -9,6 +9,17 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "out"
 
 
+def scanner_name(name):
+    lower = name.lower()
+    if not lower.startswith("lib") or not lower.endswith(".dll"):
+        return name
+    stem = name[:-4]
+    head, sep, tail = stem.rpartition("-")
+    if sep and tail.isdigit():
+        return f"{head}.-{tail}.dll"
+    return name
+
+
 def imported_dlls(binary):
     target = os.environ.get("OOBLERG_TARGET", "x86_64-w64-mingw32")
     try:
@@ -34,15 +45,23 @@ def alias_for(dll):
     return None
 
 
+def dll_search_roots():
+    roots = [OUT / "build", OUT / "sysroot"]
+    for raw in os.environ.get("OOBLERG_DLL_DIRS", "").split(os.pathsep):
+        if raw:
+            roots.append(Path(raw))
+    return roots
+
+
 def find_dll_for_library(library):
     alias = f"lib{library}.dll"
     aliases = {alias.lower(), f"{alias[:-4]}-0.dll".lower()}
-    roots = [OUT / "build", OUT / "sysroot"]
     matches = []
-    for root in roots:
+    for root in dll_search_roots():
         if not root.exists():
             continue
-        for path in root.rglob("*.dll"):
+        pattern = "*.dll" if root.is_dir() and root.name in {"bin", "lib"} else f"{alias[:-4]}*.dll"
+        for path in root.rglob(pattern):
             lower = path.name.lower()
             if lower in aliases or alias_for(path.name) == alias:
                 matches.append(path)
@@ -54,8 +73,24 @@ def requested_libraries():
     return [item for item in raw.split(os.pathsep) if item]
 
 
-def emit(alias, real):
-    print(f"        {alias} => {real} (0x00000000)")
+def emit(emitted, alias, real):
+    visible = scanner_name(alias)
+    key = visible.lower()
+    if key in emitted:
+        return
+    print(f"        {visible} => {real} (0x00000000)")
+    emitted.add(key)
+
+
+def emit_dll_dirs(emitted):
+    for raw in os.environ.get("OOBLERG_DLL_DIRS", "").split(os.pathsep):
+        if not raw:
+            continue
+        root = Path(raw)
+        if not root.is_dir():
+            continue
+        for path in sorted(root.glob("*.dll")):
+            emit(emitted, path.name, path.name)
 
 
 def main():
@@ -64,23 +99,23 @@ def main():
         return 2
 
     emitted = set()
+    binary = Path(sys.argv[1])
+    if binary.suffix.lower() == ".dll":
+        emit(emitted, binary.name, binary.name)
+
     for dll in imported_dlls(sys.argv[1]):
-        emit(dll, dll)
-        emitted.add(dll.lower())
+        emit(emitted, dll, dll)
         alias = alias_for(dll)
-        if alias and alias.lower() not in emitted:
-            emit(alias, dll)
-            emitted.add(alias.lower())
+        if alias:
+            emit(emitted, alias, dll)
 
     for library in requested_libraries():
         alias = f"lib{library}.dll"
-        if alias.lower() in emitted:
-            continue
         dll = find_dll_for_library(library)
         if dll:
-            emit(alias, dll.name)
-            emitted.add(alias.lower())
+            emit(emitted, alias, dll.name)
 
+    emit_dll_dirs(emitted)
     return 0
 
 

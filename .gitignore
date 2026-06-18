@@ -1,4 +1,31 @@
-out/
+# Generated build trees, sysroots, caches, package artifacts, and repository
+# publication output. Publish prebuilt packages outside normal git history.
+/out/
+/build/
+/dist/
+
+# Python/editor noise.
 __pycache__/
 *.py[cod]
 .DS_Store
+
+# Generated logs and temporary files.
+*.log
+*.tmp
+
+# Generated package/archive payloads. Source recipes and patches should live in
+# git; built packages should go to releases/object storage/package hosting.
+*.tar
+*.tar.gz
+*.tar.xz
+*.zip
+*.7z
+*.AppImage
+
+# Native build products.
+*.o
+*.obj
+*.a
+*.dll
+*.exe
+*.pdb

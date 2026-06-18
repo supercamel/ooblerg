@@ -1,0 +1,14 @@
+diff -urN a/Source/JavaScriptCore/Sources.txt b/Source/JavaScriptCore/Sources.txt
+--- a/Source/JavaScriptCore/Sources.txt
++++ b/Source/JavaScriptCore/Sources.txt
+@@ -27,9 +27,9 @@
+ API/JSBase.cpp
+ API/JSCTestRunnerUtils.cpp
+ API/JSCallbackConstructor.cpp
+ API/JSCallbackFunction.cpp
+ API/JSCallbackObject.cpp
+-API/JSClassRef.cpp
++API/JSClassRef.cpp @no-unify
+ API/JSContextRef.cpp
+ API/JSHeapFinalizerPrivate.cpp
+ API/JSLockRef.cpp
