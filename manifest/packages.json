@@ -295,7 +295,7 @@
       ],
       "commands": [
         "src=$PWD; build=${ROOT}/out/build/gcc; upstream=${ROOT}/out/build/gcc-src; rm -rf \"$build\" \"$upstream\"; mkdir -p \"$build\" \"$upstream\"; tar -C \"$upstream\" --strip-components=1 -xf \"$src/gcc-13.3.0.tar.xz\"; cd \"$build\" && \"$upstream/configure\" --build=${BUILD_TRIPLET} --host=x86_64-w64-mingw32 --target=x86_64-w64-mingw32 --prefix=/mingw64 --with-local-prefix=/mingw64 --disable-bootstrap --disable-nls --disable-multilib --disable-win32-registry --enable-languages=c,c++ --enable-shared --enable-threads=win32 --enable-libstdcxx --with-system-zlib --with-gmp=${ROOT}/out/sysroot/mingw64 --with-mpfr=${ROOT}/out/sysroot/mingw64 --with-mpc=${ROOT}/out/sysroot/mingw64 --with-isl=${ROOT}/out/sysroot/mingw64 --with-zstd=${ROOT}/out/sysroot/mingw64",
-        "make -C ${ROOT}/out/build/gcc -j${JOBS}",
+        "make -C ${ROOT}/out/build/gcc -j${JOBS} STAGE1_LIBS='-L${ROOT}/out/sysroot/mingw64/lib' POSTSTAGE1_LIBS='-L${ROOT}/out/sysroot/mingw64/lib'",
         "make -C ${ROOT}/out/build/gcc DESTDIR=${DESTDIR} install",
         "find ${DESTDIR}/mingw64 -name '*.la' -delete"
       ]
@@ -1559,6 +1559,579 @@
       "meson_options": [
         "-Ddocs=false",
         "-Dtests=false"
+      ]
+    },
+    {
+      "name": "openssl",
+      "source": "openssl",
+      "version_package": "libssl-dev",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib"
+      ],
+      "commands": [
+        "make clean || true",
+        "perl Configure mingw64 --prefix=/mingw64 --libdir=lib --openssldir=/mingw64/ssl shared zlib no-tests no-asm -Dsecure_getenv=getenv",
+        "make -j${JOBS}",
+        "make DESTDIR=${DESTDIR} install_sw"
+      ],
+      "post_install": [
+        "rm -rf ${DESTDIR}/mingw64/lib/engines-* ${DESTDIR}/mingw64/lib/ossl-modules"
+      ]
+    },
+    {
+      "name": "curl",
+      "source": "curl",
+      "version_package": "libcurl4-openssl-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib",
+        "brotli",
+        "zstd",
+        "nghttp2",
+        "libpsl",
+        "openssl"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--with-openssl",
+        "--with-zlib",
+        "--with-brotli",
+        "--with-zstd",
+        "--with-nghttp2",
+        "--with-libpsl",
+        "--without-libidn2",
+        "--without-librtmp",
+        "--without-libssh2",
+        "--without-zsh-functions-dir",
+        "--disable-ldap",
+        "--disable-ldaps",
+        "--disable-manual",
+        "--enable-shared",
+        "--disable-static"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ],
+      "post_install": [
+        "rm -f ${DESTDIR}/mingw64/lib/*.la"
+      ]
+    },
+    {
+      "name": "minizip",
+      "source": "zlib",
+      "source_from": "zlib",
+      "source_subdir": "contrib/minizip",
+      "version_package": "libminizip-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib"
+      ],
+      "pre_configure": [
+        "autoreconf -fi"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--disable-demos"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ],
+      "post_install": [
+        "perl -0pi -e 's/Libs: -L\\$\\{libdir\\} -lminizip/Libs: -L${libdir} -lminizip -lz/' ${DESTDIR}/mingw64/lib/pkgconfig/minizip.pc",
+        "rm -f ${DESTDIR}/mingw64/lib/*.la"
+      ]
+    },
+    {
+      "name": "xz",
+      "source": "xz-utils",
+      "version_package": "liblzma-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--disable-doc",
+        "--disable-scripts",
+        "--disable-xz",
+        "--disable-xzdec",
+        "--disable-lzmadec",
+        "--disable-lzmainfo"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "bzip2",
+      "source": "bzip2",
+      "version_package": "libbz2-dev",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "commands": [
+        "make clean || true",
+        "make -j${JOBS} CC=${TARGET}-gcc AR=${TARGET}-ar RANLIB=${TARGET}-ranlib CFLAGS='-O2 -D_FILE_OFFSET_BITS=64' libbz2.a",
+        "${TARGET}-gcc -O2 -D_FILE_OFFSET_BITS=64 -o bzip2.exe bzip2.c libbz2.a",
+        "mkdir -p ${DESTDIR}/mingw64/bin ${DESTDIR}/mingw64/include ${DESTDIR}/mingw64/lib",
+        "cp bzip2.exe ${DESTDIR}/mingw64/bin/",
+        "cp bzlib.h ${DESTDIR}/mingw64/include/",
+        "cp libbz2.a ${DESTDIR}/mingw64/lib/"
+      ]
+    },
+    {
+      "name": "libwebp",
+      "source": "libwebp",
+      "version_package": "libwebp-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib",
+        "libpng",
+        "jpeg",
+        "tiff"
+      ],
+      "cmake_options": [
+        "-DWEBP_BUILD_ANIM_UTILS=OFF",
+        "-DWEBP_BUILD_CWEBP=OFF",
+        "-DWEBP_BUILD_DWEBP=OFF",
+        "-DWEBP_BUILD_GIF2WEBP=OFF",
+        "-DWEBP_BUILD_IMG2WEBP=OFF",
+        "-DWEBP_BUILD_VWEBP=OFF",
+        "-DWEBP_BUILD_WEBPINFO=OFF",
+        "-DWEBP_BUILD_WEBPMUX=OFF",
+        "-DWEBP_BUILD_EXTRAS=OFF"
+      ]
+    },
+    {
+      "name": "opus",
+      "source": "opus",
+      "version_package": "libopus-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--disable-doc",
+        "--disable-extra-programs"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "libsndfile",
+      "source": "libsndfile",
+      "version_package": "libsndfile1-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib",
+        "opus",
+        "sqlite"
+      ],
+      "cmake_options": [
+        "-DBUILD_PROGRAMS=OFF",
+        "-DBUILD_EXAMPLES=OFF",
+        "-DBUILD_TESTING=OFF",
+        "-DENABLE_EXTERNAL_LIBS=OFF",
+        "-DENABLE_SQLITE=ON"
+      ]
+    },
+    {
+      "name": "eigen3",
+      "source": "eigen3",
+      "version_package": "libeigen3-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DBUILD_TESTING=OFF",
+        "-DEIGEN_BUILD_DOC=OFF"
+      ]
+    },
+    {
+      "name": "geos",
+      "source": "geos",
+      "version_package": "libgeos-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DBUILD_TESTING=OFF",
+        "-DBUILD_DOCUMENTATION=OFF"
+      ]
+    },
+    {
+      "name": "pugixml",
+      "source": "pugixml",
+      "version_package": "libpugixml-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DBUILD_SHARED_LIBS=ON"
+      ]
+    },
+    {
+      "name": "rapidjson",
+      "source": "rapidjson",
+      "version_package": "rapidjson-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DRAPIDJSON_BUILD_DOC=OFF",
+        "-DRAPIDJSON_BUILD_EXAMPLES=OFF",
+        "-DRAPIDJSON_BUILD_TESTS=OFF"
+      ]
+    },
+    {
+      "name": "openblas",
+      "source": "openblas",
+      "version_package": "libopenblas-dev",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "commands": [
+        "make -j${JOBS} CC=${TARGET}-gcc FC= NOFORTRAN=1 NO_LAPACK=1 NO_LAPACKE=1 ONLY_CBLAS=1 DYNAMIC_ARCH=0 TARGET=CORE2 USE_THREAD=0 USE_OPENMP=0 BINARY=64 HOSTCC=gcc",
+        "make PREFIX=/mingw64 DESTDIR=${DESTDIR} NOFORTRAN=1 NO_LAPACK=1 NO_LAPACKE=1 ONLY_CBLAS=1 install"
+      ]
+    },
+    {
+      "name": "stb",
+      "source": "libstb",
+      "version_package": "libstb-dev",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "commands": [
+        "mkdir -p ${DESTDIR}/mingw64/include/stb",
+        "find . -maxdepth 1 -type f \\( -name 'stb*.h' -o -name 'stretchy_buffer.h' \\) -exec cp {} ${DESTDIR}/mingw64/include/stb/ \\;",
+        "test ! -f stb_vorbis.c || cp stb_vorbis.c ${DESTDIR}/mingw64/include/stb/"
+      ]
+    },
+    {
+      "name": "utfcpp",
+      "source": "utfcpp",
+      "version_package": "libutfcpp-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DUTF8_TESTS=OFF",
+        "-DUTF8_SAMPLES=OFF"
+      ],
+      "post_install": [
+        "cp ${DESTDIR}/mingw64/include/utf8cpp/utf8.h ${DESTDIR}/mingw64/include/utf8.h",
+        "cp -R ${DESTDIR}/mingw64/include/utf8cpp/utf8 ${DESTDIR}/mingw64/include/utf8"
+      ]
+    },
+    {
+      "name": "assimp",
+      "source": "assimp",
+      "version_package": "libassimp-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib",
+        "minizip",
+        "pugixml",
+        "rapidjson",
+        "stb",
+        "utfcpp"
+      ],
+      "pre_configure": [
+        "mkdir -p contrib/stb && cp ${ROOT}/out/sysroot/mingw64/include/stb/stb_image.h contrib/stb/",
+        "perl -0pi -e 's/\\n\\s*list\\(APPEND Core_SRCS \"res\\/assimp\\.rc\"\\)//' code/CMakeLists.txt",
+        "perl -0pi -e 's/find_package\\(draco CONFIG REQUIRED\\)\\nif\\(NOT DRACO_LIBRARIES\\)\\n    set\\(DRACO_LIBRARIES \"draco::draco\"\\)\\nendif\\(\\)\\ntarget_link_libraries\\(assimp PRIVATE \\$\\{DRACO_LIBRARIES\\}\\)\\n//' code/CMakeLists.txt"
+      ],
+      "cmake_options": [
+        "-DASSIMP_HUNTER_ENABLED=OFF",
+        "-DASSIMP_BUILD_ZLIB=OFF",
+        "-DASSIMP_BUILD_DRACO=OFF",
+        "-DASSIMP_BUILD_TESTS=OFF",
+        "-DASSIMP_BUILD_ASSIMP_TOOLS=OFF",
+        "-DASSIMP_BUILD_SAMPLES=OFF",
+        "-DASSIMP_BUILD_DOCS=OFF",
+        "-DASSIMP_INSTALL_PDB=OFF",
+        "-DASSIMP_WARNINGS_AS_ERRORS=OFF"
+      ]
+    },
+    {
+      "name": "openal-soft",
+      "source": "openal-soft",
+      "version_package": "libopenal-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DLIBTYPE=SHARED",
+        "-DALSOFT_UTILS=OFF",
+        "-DALSOFT_EXAMPLES=OFF",
+        "-DALSOFT_TESTS=OFF",
+        "-DALSOFT_CONFIG=OFF"
+      ]
+    },
+    {
+      "name": "SDL2",
+      "source": "libsdl2",
+      "version_package": "libsdl2-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DSDL_SHARED=ON",
+        "-DSDL_STATIC=OFF",
+        "-DSDL_TEST=OFF",
+        "-DSDL_TESTS=OFF",
+        "-DSDL_INSTALL_TESTS=OFF",
+        "-DSDL_HIDAPI=OFF",
+        "-DSDL_LIBUDEV=OFF"
+      ]
+    },
+    {
+      "name": "SDL2_image",
+      "source": "libsdl2-image",
+      "version_package": "libsdl2-image-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime",
+        "SDL2",
+        "zlib",
+        "libpng",
+        "jpeg",
+        "tiff",
+        "libwebp"
+      ],
+      "cmake_options": [
+        "-DSDL2IMAGE_SAMPLES=OFF",
+        "-DSDL2IMAGE_TESTS=OFF",
+        "-DSDL2IMAGE_VENDORED=OFF",
+        "-DSDL2IMAGE_JPG=ON",
+        "-DSDL2IMAGE_PNG=ON",
+        "-DSDL2IMAGE_TIF=ON",
+        "-DSDL2IMAGE_WEBP=ON"
+      ]
+    },
+    {
+      "name": "SDL2_mixer",
+      "source": "libsdl2-mixer",
+      "version_package": "libsdl2-mixer-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime",
+        "SDL2"
+      ],
+      "cmake_options": [
+        "-DSDL2MIXER_SAMPLES=OFF",
+        "-DSDL2MIXER_VENDORED=OFF",
+        "-DSDL2MIXER_FLAC=OFF",
+        "-DSDL2MIXER_MOD=OFF",
+        "-DSDL2MIXER_MP3=OFF",
+        "-DSDL2MIXER_MIDI=OFF",
+        "-DSDL2MIXER_OPUS=OFF",
+        "-DSDL2MIXER_VORBIS=OFF",
+        "-DSDL2MIXER_WAVPACK=OFF"
+      ]
+    },
+    {
+      "name": "SDL2_ttf",
+      "source": "libsdl2-ttf",
+      "version_package": "libsdl2-ttf-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime",
+        "SDL2",
+        "freetype",
+        "harfbuzz"
+      ],
+      "cmake_options": [
+        "-DSDL2TTF_SAMPLES=OFF",
+        "-DSDL2TTF_VENDORED=OFF",
+        "-DSDL2TTF_HARFBUZZ=ON",
+        "-DSDL2TTF_FREETYPE=ON"
+      ]
+    },
+    {
+      "name": "glfw",
+      "source": "glfw3",
+      "version_package": "libglfw3-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DGLFW_BUILD_EXAMPLES=OFF",
+        "-DGLFW_BUILD_TESTS=OFF",
+        "-DGLFW_BUILD_DOCS=OFF"
+      ]
+    },
+    {
+      "name": "box2d",
+      "source": "box2d",
+      "version_package": "libbox2d-dev",
+      "build_system": "cmake",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "cmake_options": [
+        "-DBOX2D_BUILD_UNIT_TESTS=OFF",
+        "-DBOX2D_BUILD_TESTBED=OFF",
+        "-DBOX2D_BUILD_DOCS=OFF"
+      ]
+    },
+    {
+      "name": "fftw3",
+      "source": "fftw3",
+      "version_package": "libfftw3-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--enable-shared",
+        "--enable-static",
+        "--disable-fortran",
+        "--disable-mpi",
+        "--disable-openmp",
+        "--disable-threads"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ]
+    },
+    {
+      "name": "gsl",
+      "source": "gsl",
+      "version_package": "libgsl-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "pre_configure": [
+        "perl -0pi -e 's/ doc\\n/\\n/' Makefile.in",
+        "perl -0pi -e 's/ doc\\n/\\n/' Makefile.am"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "install"
+      ],
+      "post_install": [
+        "rm -f ${DESTDIR}/mingw64/lib/*.la"
+      ]
+    },
+    {
+      "name": "mingw-binutils",
+      "source": "binutils",
+      "version_package": "binutils-mingw-w64-x86-64",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib"
+      ],
+      "commands": [
+        "mkdir -p ${ROOT}/out/build/mingw-binutils",
+        "cd ${ROOT}/out/build/mingw-binutils && ${ROOT}/out/sources/mingw-binutils/*/configure --host=x86_64-w64-mingw32 --build=${BUILD_TRIPLET} --target=x86_64-w64-mingw32 --prefix=/mingw64 --with-sysroot=/mingw64 --disable-multilib --disable-nls --disable-werror --without-debuginfod --with-system-zlib",
+        "make -C ${ROOT}/out/build/mingw-binutils -j${JOBS}",
+        "make -C ${ROOT}/out/build/mingw-binutils DESTDIR=${DESTDIR} install"
+      ],
+      "post_install": [
+        "rm -f ${DESTDIR}/mingw64/lib/*.la ${DESTDIR}/mingw64/lib/bfd-plugins/*.la"
+      ]
+    },
+    {
+      "name": "mingw-gcc",
+      "source": "gcc-13",
+      "version_package": "gcc-mingw-w64-x86-64",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime",
+        "mingw-binutils",
+        "gmp",
+        "mpfr",
+        "mpc",
+        "isl",
+        "zlib"
+      ],
+      "pre_configure": [
+        "test -f gcc-13.3.0/configure || tar -xf gcc-13.3.0.tar.xz"
+      ],
+      "commands": [
+        "gcc_src=$(find ${ROOT}/out/sources/mingw-gcc -maxdepth 3 -type f -name configure -path '*/gcc*/configure' -printf '%h\\n' | head -n1); test -n \"$gcc_src\"",
+        "mkdir -p ${ROOT}/out/build/mingw-gcc",
+        "gcc_src=$(find ${ROOT}/out/sources/mingw-gcc -maxdepth 3 -type f -name configure -path '*/gcc*/configure' -printf '%h\\n' | head -n1); cd ${ROOT}/out/build/mingw-gcc && \"$gcc_src/configure\" --host=x86_64-w64-mingw32 --build=${BUILD_TRIPLET} --target=x86_64-w64-mingw32 --prefix=/mingw64 --with-sysroot=/mingw64 --with-build-sysroot=${ROOT}/out/sysroot --with-native-system-header-dir=/mingw64/include --with-gmp=${ROOT}/out/sysroot/mingw64 --with-mpfr=${ROOT}/out/sysroot/mingw64 --with-mpc=${ROOT}/out/sysroot/mingw64 --with-isl=${ROOT}/out/sysroot/mingw64 --with-gnu-as --with-gnu-ld --disable-bootstrap --disable-multilib --disable-nls --disable-werror --disable-libstdcxx-pch --enable-languages=c,c++ --enable-threads=win32 --with-system-zlib",
+        "make -C ${ROOT}/out/build/mingw-gcc -j${JOBS} all-gcc",
+        "make -C ${ROOT}/out/build/mingw-gcc DESTDIR=${DESTDIR} install-gcc"
+      ],
+      "post_install": [
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
       ]
     }
   ]

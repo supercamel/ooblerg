@@ -863,6 +863,7 @@ function command_seed_runtime(args) {
     shell("cp -a " + shell_quote(gcc_runtime) + " " + shell_quote(gcc_dest))
     shell_raw("cp -a " + shell_quote(path_join([gcc_runtime, "*.dll"])) + " " + shell_quote(path_join([prefix, "bin"])) + " 2>/dev/null || true")
     prune_runtime_seed(prefix)
+    run_recipe_commands(pkg, "post_install", data, this.root, stage)
     package_stage(pkg, version)
     return 0
 }
