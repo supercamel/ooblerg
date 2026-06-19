@@ -807,7 +807,7 @@ function package_stage(pkg, version) {
     local artifact = artifact_path(pkg, version)
     mkdir_p(GLib.path_get_dirname(artifact))
     shell_raw("rm -f " + shell_quote(path_join([stage, "mingw64", "share", "info", "dir"])) + " 2>/dev/null || true")
-    shell("rm -f " + shell_quote(artifact) + " && tar -czf " + shell_quote(artifact) + " -C " + shell_quote(stage) + " .")
+    shell("rm -f " + shell_quote(artifact) + " && tar --dereference --hard-dereference -czf " + shell_quote(artifact) + " -C " + shell_quote(stage) + " .")
     install_artifact(artifact)
     print("wrote " + artifact + "\n")
 }

@@ -1058,18 +1058,41 @@
       ]
     },
     {
+      "name": "libgirepository-1.0",
+      "source": "gobject-introspection",
+      "source_from": "gobject-introspection",
+      "version_package": "libgirepository1.0-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "libffi"
+      ],
+      "pre_configure": [
+        "perl -0pi -e \"s/cc\\\\.check_header\\\\('Python\\\\.h', dependencies: \\\\[python\\\\.dependency\\\\(\\\\)\\\\], required: true\\\\)/# skipped for libgirepository-only cross build/; s/subdir\\\\('giscanner'\\\\)/# subdir('giscanner')/; s/subdir\\\\('tools'\\\\)/# subdir('tools')/; s/subdir\\\\('tests'\\\\)/# subdir('tests')/; s/subdir\\\\('docs'\\\\)/# subdir('docs')/; s/subdir\\\\('gir'\\\\)/# subdir('gir')/\" meson.build"
+      ],
+      "meson_options": [
+        "-Dbuild_introspection_data=false",
+        "-Dcairo=disabled",
+        "-Ddoctool=disabled",
+        "-Dgtk_doc=false"
+      ],
+      "post_install": [
+        "find ${DESTDIR}/mingw64/share -mindepth 1 -maxdepth 1 -exec rm -rf {} +"
+      ]
+    },
+    {
       "name": "gobject-introspection",
       "version_package": "gobject-introspection",
       "build_system": "custom",
       "deps": [
-        "glib"
+        "glib",
+        "libgirepository-1.0"
       ],
       "commands": [
         "mkdir -p ${DESTDIR}/mingw64/lib/pkgconfig ${DESTDIR}/mingw64/share/gobject-introspection-1.0 ${DESTDIR}/mingw64/share/aclocal",
         "cp /usr/share/gobject-introspection-1.0/gdump.c ${DESTDIR}/mingw64/share/gobject-introspection-1.0/gdump.c",
-        "test ! -f /usr/share/aclocal/introspection.m4 || cp /usr/share/aclocal/introspection.m4 ${DESTDIR}/mingw64/share/aclocal/introspection.m4",
-        "version=$(env -u PKG_CONFIG_LIBDIR -u PKG_CONFIG_SYSROOT_DIR pkg-config --modversion gobject-introspection-1.0); printf '%s\\n' 'prefix=/mingw64' 'bindir=${prefix}/bin' 'datadir=${prefix}/share' 'includedir=${prefix}/include' 'libdir=${prefix}/lib' '' 'g_ir_scanner=${bindir}/g-ir-scanner' 'g_ir_compiler=${bindir}/gi-compile-repository.exe' 'g_ir_generate=${bindir}/g-ir-generate.exe' 'gidatadir=${datadir}/gobject-introspection-1.0' 'girdir=${datadir}/gir-1.0' 'typelibdir=${libdir}/girepository-1.0' '' 'Name: gobject-introspection' 'Description: GObject Introspection compatibility metadata for cross GIR generation' \"Version: $version\" 'Requires: glib-2.0 >= 2.80.0, gobject-2.0 >= 2.80.0, girepository-2.0 >= 2.80.0' 'Libs: -L${libdir} -lgirepository-2.0' 'Cflags: -I${includedir}/glib-2.0' > ${DESTDIR}/mingw64/lib/pkgconfig/gobject-introspection-1.0.pc",
-        "version=$(env -u PKG_CONFIG_LIBDIR -u PKG_CONFIG_SYSROOT_DIR pkg-config --modversion gobject-introspection-1.0); printf '%s\\n' 'prefix=/mingw64' 'bindir=${prefix}/bin' 'datadir=${prefix}/share' 'includedir=${prefix}/include' 'libdir=${prefix}/lib' '' 'g_ir_scanner=${bindir}/g-ir-scanner' 'g_ir_compiler=${bindir}/gi-compile-repository.exe' 'g_ir_generate=${bindir}/g-ir-generate.exe' 'gidatadir=${datadir}/gobject-introspection-1.0' 'girdir=${datadir}/gir-1.0' 'typelibdir=${libdir}/girepository-1.0' '' 'Name: gobject-introspection' 'Description: GObject Introspection non-export metadata for cross GIR generation' \"Version: $version\" 'Requires: gobject-introspection-1.0, glib-2.0 >= 2.80.0, gobject-2.0 >= 2.80.0' 'Cflags: -I${includedir}/glib-2.0' > ${DESTDIR}/mingw64/lib/pkgconfig/gobject-introspection-no-export-1.0.pc"
+        "test ! -f /usr/share/aclocal/introspection.m4 || cp /usr/share/aclocal/introspection.m4 ${DESTDIR}/mingw64/share/aclocal/introspection.m4"
       ]
     },
     {
@@ -1079,7 +1102,8 @@
       "version_package": "libglib2.0-dev",
       "build_system": "meson",
       "deps": [
-        "gobject-introspection"
+        "gobject-introspection",
+        "win32-introspection"
       ],
       "pre_configure": [
         "perl -0pi -e \"s/if enable_gir\\n  # Replace the default g-ir-compiler target with the version we\\n  # just built\\.\\n  meson\\.override_find_program\\('g-ir-compiler', gicompilerepository\\)\\nendif/if enable_gir and not meson.is_cross_build()\\n  # Replace the default g-ir-compiler target with the version we\\n  # just built.\\n  meson.override_find_program('g-ir-compiler', gicompilerepository)\\nendif/s\" girepository/compiler/meson.build"
@@ -1095,9 +1119,6 @@
         "-Dlibmount=disabled"
       ],
       "post_install": [
-        "cp ${ROOT}/tools/win32-1.0.gir ${DESTDIR}/mingw64/share/gir-1.0/win32-1.0.gir",
-        "mkdir -p ${DESTDIR}/mingw64/lib/girepository-1.0",
-        "/usr/bin/g-ir-compiler ${ROOT}/tools/win32-1.0.gir -o ${DESTDIR}/mingw64/lib/girepository-1.0/win32-1.0.typelib",
         "find ${DESTDIR}/mingw64 -mindepth 1 -maxdepth 1 ! -name share ! -name lib -exec rm -rf {} +",
         "find ${DESTDIR}/mingw64/share -mindepth 1 -maxdepth 1 ! -name gir-1.0 -exec rm -rf {} +",
         "find ${DESTDIR}/mingw64/lib -mindepth 1 -maxdepth 1 ! -name girepository-1.0 -exec rm -rf {} +"
@@ -1114,6 +1135,27 @@
         "mkdir -p ${DESTDIR}${PREFIX}/share/gir-1.0 ${DESTDIR}${PREFIX}/lib/girepository-1.0",
         "install -m 0644 ${ROOT}/support/gir/win32-1.0.gir ${DESTDIR}${PREFIX}/share/gir-1.0/win32-1.0.gir",
         "g-ir-compiler --includedir=${DESTDIR}${PREFIX}/share/gir-1.0 -o ${DESTDIR}${PREFIX}/lib/girepository-1.0/win32-1.0.typelib ${DESTDIR}${PREFIX}/share/gir-1.0/win32-1.0.gir"
+      ]
+    },
+    {
+      "name": "sqgi",
+      "version": "0.1.6-alpha-14-g601fbaf+ooblerg1",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "libgirepository-1.0",
+        "cairo",
+        "libffi"
+      ],
+      "commands": [
+        "set -eu; commit=601fbaf5dae17870efc86a094e3f8be2b735a64a; repo=${ROOT}/out/source-cache/sqgi/repo; if [ ! -d \"$repo/.git\" ]; then rm -rf \"$repo\" && git clone https://github.com/supercamel/sqgi.git \"$repo\"; else git -C \"$repo\" fetch --tags origin; fi; git -C \"$repo\" checkout -f \"$commit\"",
+        "perl -0pi -e 's/if \\(sq_gettop\\(v\\) >= 2 &&\\n        SQ_SUCCEEDED\\(sq_tostring\\(v, 2\\)\\) &&\\n        SQ_SUCCEEDED\\(sq_getstring\\(v, -1, &message\\)\\) &&\\n        message\\) \\{\\n        pf\\(v, \"\\\\nAN ERROR HAS OCCURRED \\[%s\\]\\\\n\", message\\);\\n    \\} else \\{/if ((top >= 1 && SQ_SUCCEEDED(sq_tostring(v, 1)) && SQ_SUCCEEDED(sq_getstring(v, -1, \\&message)) && message) ||\\n        (top >= 2 && SQ_SUCCEEDED(sq_tostring(v, 2)) && SQ_SUCCEEDED(sq_getstring(v, -1, \\&message)) && message)) {\\n        pf(v, \"\\\\nAN ERROR HAS OCCURRED [%s]\\\\n\", message);\\n    } else {/s' ${ROOT}/out/source-cache/sqgi/repo/src/sqgi_vm.c",
+        "rm -rf ${ROOT}/out/build/sqgi",
+        "cmake -S ${ROOT}/out/source-cache/sqgi/repo -B ${ROOT}/out/build/sqgi -G Ninja -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=x86_64 -DCMAKE_C_COMPILER=${TARGET}-gcc -DCMAKE_CXX_COMPILER=${TARGET}-g++ -DCMAKE_RC_COMPILER=${TARGET}-windres -DCMAKE_FIND_ROOT_PATH=${ROOT}/out/sysroot -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY -DCMAKE_INSTALL_PREFIX=${PREFIX} -DCMAKE_BUILD_TYPE=Release -DSQ_ENABLE_JIT=OFF -DSQGI_ENABLE_ASAN=OFF -DSQGI_WINDOWS_GUI=OFF",
+        "cmake --build ${ROOT}/out/build/sqgi --target sqgi sqgi-bin --parallel ${JOBS}",
+        "cmake --install ${ROOT}/out/build/sqgi --prefix ${PREFIX}"
       ]
     },
     {
