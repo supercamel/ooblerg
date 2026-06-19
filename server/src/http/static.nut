@@ -2,9 +2,16 @@ local GLib = import("GLib")
 local U = import("../util.nut")
 
 function content_type(path) {
+    if (U.ends_with(path, ".html")) return "text/html; charset=utf-8"
+    if (U.ends_with(path, ".css")) return "text/css; charset=utf-8"
+    if (U.ends_with(path, ".js")) return "application/javascript; charset=utf-8"
     if (U.ends_with(path, ".json")) return "application/json"
     if (U.ends_with(path, ".sha256")) return "text/plain"
     if (U.ends_with(path, ".tar.gz")) return "application/gzip"
+    if (U.ends_with(path, ".exe")) return "application/vnd.microsoft.portable-executable"
+    if (U.ends_with(path, ".ico")) return "image/x-icon"
+    if (U.ends_with(path, ".png")) return "image/png"
+    if (U.ends_with(path, ".svg")) return "image/svg+xml"
     if (U.ends_with(path, ".txt")) return "text/plain"
     return "application/octet-stream"
 }
@@ -34,7 +41,16 @@ function split_path(path) {
 
 function resolve(repo_dir, request_path) {
     local rel = request_path
-    if (rel == "/" || rel == "") rel = "/v1/index.json"
+    if (rel == "/" || rel == "") {
+        local index_path = GLib.build_filenamev([repo_dir, "index.html"])
+        if (U.is_regular(index_path)) {
+            return {
+                path = index_path,
+                content_type = content_type(index_path),
+            }
+        }
+        rel = "/v1/index.json"
+    }
     if (U.starts_with(rel, "/")) rel = rel.slice(1)
     if (unsafe_path(rel)) return null
     local root = GLib.canonicalize_filename(repo_dir, null)
