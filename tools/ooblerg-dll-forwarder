@@ -1,0 +1,31 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -ne 2 ]; then
+    echo "usage: ooblerg-dll-forwarder SOURCE.dll TARGET.dll" >&2
+    exit 2
+fi
+
+target=${TARGET:-x86_64-w64-mingw32}
+src=$1
+dst=$2
+srcbase=$(basename "$src")
+dstbase=$(basename "$dst")
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+{
+    echo "LIBRARY \"$dstbase\""
+    echo "EXPORTS"
+    "${target}-objdump" -p "$src" | awk -v dll="$srcbase" '
+        /^\[Ordinal\/Name Pointer\] Table/ { inside = 1; next }
+        inside && /^The / { exit }
+        inside && /^[[:space:]]*\[[ 0-9]+\][[:space:]]+/ && NF >= 3 {
+            print "    " $3 "=\"" dll "\"." $3
+        }
+    '
+} > "$tmp/forward.def"
+
+printf 'void __ooblerg_forwarder(void) {}\n' > "$tmp/empty.c"
+"${target}-dlltool" -d "$tmp/forward.def" -e "$tmp/exports.o"
+"${target}-gcc" -shared -o "$dst" "$tmp/empty.c" "$tmp/exports.o"

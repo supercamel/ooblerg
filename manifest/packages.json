@@ -7,6 +7,7 @@
       "name": "mingw-w64-runtime",
       "kind": "runtime-seed",
       "version_package": "mingw-w64-x86-64-dev",
+      "version_suffix": "+ooblerg2",
       "description": "Ubuntu MinGW headers, CRT, import libraries, and active GCC runtime DLLs repackaged into the ooblerg sysroot."
     },
     {
@@ -348,6 +349,7 @@
       "name": "gtk4",
       "source": "gtk4",
       "version_package": "libgtk-4-dev",
+      "version_suffix": "+ooblerg2",
       "build_system": "meson",
       "deps": [
         "mingw-w64-runtime",
@@ -378,6 +380,9 @@
         "-Dwayland-backend=false",
         "-Dx11-backend=false",
         "-Dwin32-backend=true"
+      ],
+      "post_install": [
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libgtk-4-1.dll ${DESTDIR}/mingw64/bin/libgtk-4.dll"
       ]
     },
     {
@@ -1053,6 +1058,7 @@
       "name": "glib",
       "source": "glib2.0",
       "version_package": "libglib2.0-dev",
+      "version_suffix": "+ooblerg2",
       "build_system": "meson",
       "deps": [
         "mingw-w64-runtime",
@@ -1072,7 +1078,11 @@
         "-Dlibmount=disabled"
       ],
       "post_install": [
-        "cp ${DESTDIR}/mingw64/lib/pkgconfig/gio-windows-2.0.pc ${DESTDIR}/mingw64/lib/pkgconfig/gio-win32-2.0.pc"
+        "cp ${DESTDIR}/mingw64/lib/pkgconfig/gio-windows-2.0.pc ${DESTDIR}/mingw64/lib/pkgconfig/gio-win32-2.0.pc",
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libglib-2.0-0.dll ${DESTDIR}/mingw64/bin/libglib-2.0.dll",
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libgobject-2.0-0.dll ${DESTDIR}/mingw64/bin/libgobject-2.0.dll",
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libgmodule-2.0-0.dll ${DESTDIR}/mingw64/bin/libgmodule-2.0.dll",
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libgio-2.0-0.dll ${DESTDIR}/mingw64/bin/libgio-2.0.dll"
       ]
     },
     {
@@ -1157,7 +1167,7 @@
     },
     {
       "name": "sqgi",
-      "version": "0.1.6-alpha-14-g601fbaf+ooblerg1",
+      "version": "0.1.6-alpha-15-g27b9f6a",
       "build_system": "custom",
       "deps": [
         "mingw-w64-runtime",
@@ -1168,8 +1178,7 @@
         "libffi"
       ],
       "commands": [
-        "set -eu; commit=601fbaf5dae17870efc86a094e3f8be2b735a64a; repo=${ROOT}/out/source-cache/sqgi/repo; if [ ! -d \"$repo/.git\" ]; then rm -rf \"$repo\" && git clone https://github.com/supercamel/sqgi.git \"$repo\"; else git -C \"$repo\" fetch --tags origin; fi; git -C \"$repo\" checkout -f \"$commit\"",
-        "perl -0pi -e 's/if \\(sq_gettop\\(v\\) >= 2 &&\\n        SQ_SUCCEEDED\\(sq_tostring\\(v, 2\\)\\) &&\\n        SQ_SUCCEEDED\\(sq_getstring\\(v, -1, &message\\)\\) &&\\n        message\\) \\{\\n        pf\\(v, \"\\\\nAN ERROR HAS OCCURRED \\[%s\\]\\\\n\", message\\);\\n    \\} else \\{/if ((top >= 1 && SQ_SUCCEEDED(sq_tostring(v, 1)) && SQ_SUCCEEDED(sq_getstring(v, -1, \\&message)) && message) ||\\n        (top >= 2 && SQ_SUCCEEDED(sq_tostring(v, 2)) && SQ_SUCCEEDED(sq_getstring(v, -1, \\&message)) && message)) {\\n        pf(v, \"\\\\nAN ERROR HAS OCCURRED [%s]\\\\n\", message);\\n    } else {/s' ${ROOT}/out/source-cache/sqgi/repo/src/sqgi_vm.c",
+        "set -eu; commit=27b9f6a299340e90ed428ba33d6a8f72d116e621; repo=${ROOT}/out/source-cache/sqgi/repo; if [ ! -d \"$repo/.git\" ]; then rm -rf \"$repo\" && git clone https://github.com/supercamel/sqgi.git \"$repo\"; else git -C \"$repo\" fetch --tags origin; fi; git -C \"$repo\" checkout -f \"$commit\"",
         "rm -rf ${ROOT}/out/build/sqgi",
         "cmake -S ${ROOT}/out/source-cache/sqgi/repo -B ${ROOT}/out/build/sqgi -G Ninja -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=x86_64 -DCMAKE_C_COMPILER=${TARGET}-gcc -DCMAKE_CXX_COMPILER=${TARGET}-g++ -DCMAKE_RC_COMPILER=${TARGET}-windres -DCMAKE_FIND_ROOT_PATH=${ROOT}/out/sysroot -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY -DCMAKE_INSTALL_PREFIX=${PREFIX} -DCMAKE_BUILD_TYPE=Release -DSQ_ENABLE_JIT=OFF -DSQGI_ENABLE_ASAN=OFF -DSQGI_WINDOWS_GUI=OFF",
         "cmake --build ${ROOT}/out/build/sqgi --target sqgi sqgi-bin --parallel ${JOBS}",
@@ -1486,21 +1495,29 @@
       "name": "graphene",
       "source": "graphene",
       "version_package": "libgraphene-1.0-dev",
+      "version_suffix": "+ooblerg2",
       "build_system": "meson",
       "deps": [
         "mingw-w64-runtime",
         "glib",
         "glib-introspection"
       ],
+      "pre_configure": [
+        "perl -0pi -e \"s/'-Werror=([^']+)'/'-Wno-error=\\$1'/g\" meson.build"
+      ],
       "meson_options": [
         "-Dintrospection=enabled",
         "-Dtests=false"
+      ],
+      "post_install": [
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libgraphene-1.0-0.dll ${DESTDIR}/mingw64/bin/libgraphene-1.0.dll"
       ]
     },
     {
       "name": "harfbuzz",
       "source": "harfbuzz",
       "version_package": "libharfbuzz-dev",
+      "version_suffix": "+ooblerg2",
       "build_system": "meson",
       "deps": [
         "mingw-w64-runtime",
@@ -1509,6 +1526,9 @@
         "freetype",
         "icu"
       ],
+      "pre_configure": [
+        "perl -0pi -e 's/#pragma GCC diagnostic error\\s+\"-Wredundant-decls\"/#pragma GCC diagnostic ignored \"-Wredundant-decls\"/' src/hb.hh"
+      ],
       "meson_options": [
         "-Dintrospection=enabled",
         "-Dgobject=enabled",
@@ -1516,12 +1536,17 @@
         "-Dtests=disabled",
         "-Ddocs=disabled",
         "-Dbenchmark=disabled"
+      ],
+      "post_install": [
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libharfbuzz-0.dll ${DESTDIR}/mingw64/bin/libharfbuzz.dll",
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libharfbuzz-gobject-0.dll ${DESTDIR}/mingw64/bin/libharfbuzz-gobject.dll"
       ]
     },
     {
       "name": "pango",
       "source": "pango1.0",
       "version_package": "libpango1.0-dev",
+      "version_suffix": "+ooblerg2",
       "build_system": "meson",
       "deps": [
         "mingw-w64-runtime",
@@ -1533,15 +1558,23 @@
         "freetype",
         "harfbuzz"
       ],
+      "pre_configure": [
+        "perl -0pi -e \"s/'-Werror=redundant-decls'/'-Wno-error=redundant-decls'/g\" meson.build"
+      ],
       "meson_options": [
         "-Dintrospection=enabled",
         "-Dgtk_doc=false"
+      ],
+      "post_install": [
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libpango-1.0-0.dll ${DESTDIR}/mingw64/bin/libpango-1.0.dll",
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libpangocairo-1.0-0.dll ${DESTDIR}/mingw64/bin/libpangocairo-1.0.dll"
       ]
     },
     {
       "name": "gdk-pixbuf",
       "source": "gdk-pixbuf",
       "version_package": "libgdk-pixbuf-2.0-dev",
+      "version_suffix": "+ooblerg2",
       "build_system": "meson",
       "deps": [
         "mingw-w64-runtime",
@@ -1559,6 +1592,9 @@
         "-Dtests=false",
         "-Dgio_sniffing=false",
         "-Dtiff=disabled"
+      ],
+      "post_install": [
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libgdk_pixbuf-2.0-0.dll ${DESTDIR}/mingw64/bin/libgdk_pixbuf-2.0.dll"
       ]
     },
     {

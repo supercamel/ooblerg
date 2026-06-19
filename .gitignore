@@ -13,6 +13,9 @@ __pycache__/
 *.log
 *.tmp
 
+# Machine/domain-specific deployment files.
+/deploy/
+
 # Generated package/archive payloads. Source recipes and patches should live in
 # git; built packages should go to releases/object storage/package hosting.
 *.tar

@@ -348,13 +348,16 @@ function tar_version(version) {
 }
 
 function package_version(pkg) {
+    local version = null
     if (!("version_package" in pkg) || pkg.version_package == "") {
         if ("kind" in pkg && pkg.kind == "meta") return "version" in pkg ? pkg.version : "1"
-        return "version" in pkg ? pkg.version : "unknown"
+        version = "version" in pkg ? pkg.version : "unknown"
+    } else {
+        local candidate = apt_candidate(pkg.version_package)
+        version = candidate != null && candidate != "" ? candidate : ("version" in pkg ? pkg.version : "unknown")
     }
-    local candidate = apt_candidate(pkg.version_package)
-    if (candidate != null && candidate != "") return candidate
-    return "version" in pkg ? pkg.version : "unknown"
+    if ("version_suffix" in pkg && pkg.version_suffix != "") version += pkg.version_suffix
+    return version
 }
 
 function substitute(items, data, destdir = null) {
@@ -427,8 +430,13 @@ function meson_cross_file(data) {
     local compiler = maybe_output("command -v g-ir-compiler", "/usr/bin/g-ir-compiler")
     local generate = maybe_output("command -v g-ir-generate", "/usr/bin/g-ir-generate")
     local exe_wrapper = GLib.getenv("OOBLERG_EXE_WRAPPER")
+    local wrapper_script = path_join([this.root, "tools", "ooblerg-wine-wrapper"])
     local exe_wrapper_line = ""
-    if (exe_wrapper != null && exe_wrapper != "") exe_wrapper_line = "exe_wrapper = " + sqgi.json.stringify(split_words(exe_wrapper)) + "\n"
+    if (exe_wrapper != null && exe_wrapper != "") {
+        exe_wrapper_line = "exe_wrapper = '" + wrapper_script + "'\n"
+    } else if (maybe_output("command -v wine || command -v wine64", "") != "") {
+        exe_wrapper_line = "exe_wrapper = '" + wrapper_script + "'\n"
+    }
     local path = path_join([this.out, "meson-cross.ini"])
     write_text(path,
         "[binaries]\n" +
@@ -831,6 +839,12 @@ function active_gcc_runtime_dir(target) {
     return GLib.path_get_dirname(canonical(output(target + "-gcc -print-libgcc-file-name")))
 }
 
+function active_gcc_runtime_dll(target, dll) {
+    local path = canonical(output(target + "-gcc -print-file-name=" + dll))
+    if (!file_exists(path)) throw "could not find compiler runtime DLL: " + dll
+    return path
+}
+
 function prune_runtime_seed(prefix) {
     shell("rm -rf " +
         shell_quote(path_join([prefix, "lib", "ldscripts"])) + " " +
@@ -839,8 +853,7 @@ function prune_runtime_seed(prefix) {
     shell_raw("rm -f " +
         shell_quote(path_join([prefix, "bin", "libatomic-1.dll"])) + " " +
         shell_quote(path_join([prefix, "bin", "libquadmath-0.dll"])) + " " +
-        shell_quote(path_join([prefix, "bin", "libssp-0.dll"])) + " " +
-        shell_quote(path_join([prefix, "bin", "libstdc++-6.dll"])) +
+        shell_quote(path_join([prefix, "bin", "libssp-0.dll"])) +
         " 2>/dev/null || true")
 }
 
@@ -862,6 +875,9 @@ function command_seed_runtime(args) {
     mkdir_p(GLib.path_get_dirname(gcc_dest))
     shell("cp -a " + shell_quote(gcc_runtime) + " " + shell_quote(gcc_dest))
     shell_raw("cp -a " + shell_quote(path_join([gcc_runtime, "*.dll"])) + " " + shell_quote(path_join([prefix, "bin"])) + " 2>/dev/null || true")
+    foreach (dll in ["libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll"]) {
+        shell("cp -a " + shell_quote(active_gcc_runtime_dll(data.target, dll)) + " " + shell_quote(path_join([prefix, "bin", dll])))
+    }
     prune_runtime_seed(prefix)
     run_recipe_commands(pkg, "post_install", data, this.root, stage)
     package_stage(pkg, version)

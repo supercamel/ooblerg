@@ -110,11 +110,34 @@ def scanner_libraries(args):
     return libraries
 
 
+def compiler_runtime_dirs():
+    dirs = []
+    compiler = os.environ.get("CC") or shutil.which("x86_64-w64-mingw32-gcc")
+    if not compiler:
+        return dirs
+    for runtime in ("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll"):
+        try:
+            result = subprocess.run(
+                [compiler, f"-print-file-name={runtime}"],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+        except OSError:
+            continue
+        path = Path(result.stdout.strip())
+        if path.name == runtime and path.parent.exists():
+            dirs.append(path.parent)
+    return dirs
+
+
 def add_dll_dirs(args):
     dirs = [
         OUT / "sysroot" / "mingw64" / "bin",
         OUT / "sysroot" / "mingw64" / "lib",
     ]
+    dirs.extend(compiler_runtime_dirs())
     for index, arg in enumerate(args):
         if arg == "-L" and index + 1 < len(args):
             dirs.append(Path(args[index + 1]))

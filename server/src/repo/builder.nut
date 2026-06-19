@@ -228,13 +228,16 @@ class RepositoryBuilder {
     }
 
     function package_version(pkg) {
+        local version = null
         if (!("version_package" in pkg) || pkg.version_package == "") {
             if ("kind" in pkg && pkg.kind == "meta") return ("version" in pkg) ? pkg.version : "1"
-            return ("version" in pkg) ? pkg.version : "unknown"
+            version = ("version" in pkg) ? pkg.version : "unknown"
+        } else {
+            local candidate = this.apt_candidate(pkg.version_package)
+            version = (candidate != null && candidate != "") ? candidate : (("version" in pkg) ? pkg.version : "unknown")
         }
-        local candidate = this.apt_candidate(pkg.version_package)
-        if (candidate != null && candidate != "") return candidate
-        return ("version" in pkg) ? pkg.version : "unknown"
+        if ("version_suffix" in pkg && pkg.version_suffix != "") version += pkg.version_suffix
+        return version
     }
 
     function artifact_filename(pkg, version) {
