@@ -19,6 +19,7 @@
         "cmake",
         "python",
         "meson",
+        "git",
         "gcc"
       ],
       "description": "Windows-native compiler and build tools for running builds inside the packaged sysroot without shipping a Unix shell."
@@ -101,6 +102,23 @@
       "build_system": "custom",
       "commands": [
         "set -eu; unset CPPFLAGS CFLAGS CXXFLAGS LDFLAGS PKG_CONFIG PKG_CONFIG_LIBDIR PKG_CONFIG_SYSROOT_DIR; tag=FRP-6075-g169694ebd; repo=${ROOT}/out/source-cache/busybox-w32/$tag; if [ ! -d \"$repo/.git\" ]; then rm -rf \"$repo\" && git clone --depth 1 --branch \"$tag\" https://github.com/rmyorston/busybox-w32.git \"$repo\"; fi; rm -rf ${ROOT}/out/build/busybox-w32; cp -a \"$repo\" ${ROOT}/out/build/busybox-w32; make -C ${ROOT}/out/build/busybox-w32 mingw64u_defconfig; make -C ${ROOT}/out/build/busybox-w32 -j${JOBS}; mkdir -p ${DESTDIR}/mingw64/bin ${DESTDIR}/mingw64/share/doc/busybox-w32; cp ${ROOT}/out/build/busybox-w32/busybox.exe ${DESTDIR}/mingw64/bin/busybox.exe; cp ${ROOT}/out/build/busybox-w32/busybox.exe ${DESTDIR}/mingw64/bin/sh.exe; cp ${ROOT}/out/build/busybox-w32/busybox.exe ${DESTDIR}/mingw64/bin/bash.exe; cp ${ROOT}/out/build/busybox-w32/LICENSE ${ROOT}/out/build/busybox-w32/README.md ${DESTDIR}/mingw64/share/doc/busybox-w32/"
+      ]
+    },
+    {
+      "name": "git",
+      "version": "2.54.0.windows.1",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "description": "Git for Windows portable distribution staged privately under /mingw64/opt/git with a /mingw64/bin/git.exe launcher.",
+      "license": {
+        "spdx": "GPL-2.0-only"
+      },
+      "commands": [
+        "set -eu; cache=${ROOT}/out/source-cache/git-for-windows/PortableGit-2.54.0-64-bit.7z.exe; mkdir -p \"$(dirname \"$cache\")\"; if [ ! -s \"$cache\" ]; then curl -fL --retry 5 --retry-delay 2 --connect-timeout 20 --max-time 900 -o \"$cache.tmp\" \"https://github.com/git-for-windows/git/releases/download/v2.54.0.windows.1/PortableGit-2.54.0-64-bit.7z.exe\" && mv \"$cache.tmp\" \"$cache\"; fi; rm -rf ${DESTDIR}/mingw64/opt/git; mkdir -p ${DESTDIR}/mingw64/opt/git ${DESTDIR}/mingw64/bin; 7z x -y -o${DESTDIR}/mingw64/opt/git \"$cache\" >/dev/null",
+        "${TARGET}-gcc -O2 -municode -o ${DESTDIR}/mingw64/bin/git.exe ${ROOT}/ports/native-sdk/git-launcher.c",
+        "mkdir -p ${DESTDIR}/mingw64/share/doc/git && cp ${DESTDIR}/mingw64/opt/git/LICENSE.txt ${DESTDIR}/mingw64/share/doc/git/LICENSE.txt"
       ]
     },
     {
