@@ -7,6 +7,7 @@ local Cache = import("../src/repo/cache.nut")
 local Solver = import("../src/pkg/solver.nut")
 local Status = import("../src/pkg/status.nut")
 local Transaction = import("../src/pkg/transaction.nut")
+local PathIntegration = import("../src/system/path.nut")
 
 function fake_index() {
     return {
@@ -50,14 +51,37 @@ function test_remove_orphan_cleanup() {
     assert(plan.remove[1].reason == "orphan")
 }
 
-function test_block_reverse_dependency() {
+function test_remove_dependent_cascade() {
     local status = Status.empty()
     status.packages["runtime"] <- { version = "1", manual = false }
     status.packages["glib"] <- { version = "1", manual = false }
     status.packages["gtk4"] <- { version = "1", manual = true }
+    status.packages["app"] <- { version = "1", manual = true }
     local plan = Solver.remove_plan(fake_index(), status, ["glib"])
-    assert(plan.blocked.len() == 1)
-    assert(plan.blocked[0].required_by == "gtk4")
+    assert(plan.blocked.len() == 0)
+    assert(plan.dependents.len() == 2)
+    assert(plan.dependents[0].name == "gtk4")
+    assert(plan.dependents[1].name == "app")
+    assert_names(plan.remove, ["glib", "gtk4", "app", "runtime"])
+    assert(plan.remove[1].reason == "dependent")
+    assert(plan.remove[2].reason == "dependent")
+    assert(plan.remove[3].reason == "orphan")
+    assert(Solver.describe_plan(plan).find("also remove installed packages that depend") != null)
+}
+
+function test_path_integration_fallback() {
+    local path = PathIntegration.mingw_bin_path()
+    assert(path.find("mingw64") != null)
+    if (!PathIntegration.native_ready()) {
+        assert(!PathIntegration.is_on_user_path())
+        local failed = false
+        try {
+            PathIntegration.add_to_user_path()
+        } catch (e) {
+            failed = e.tostring().find("Windows PATH integration") != null
+        }
+        assert(failed)
+    }
 }
 
 function shell_status(status) {
@@ -138,11 +162,15 @@ function make_fixture_repo(root) {
     return GLib.build_filenamev([repo, "index.json"])
 }
 
-function test_transaction_install_remove() {
-    local root = GLib.build_filenamev([GLib.get_tmp_dir(), "ooblerg-app-test-" + GLib.uuid_string_random()])
+function use_test_root(root) {
     GLib.setenv("LOCALAPPDATA", GLib.build_filenamev([root, "appdata"]), true)
     GLib.setenv("XDG_DATA_HOME", GLib.build_filenamev([root, "xdg-data"]), true)
     GLib.setenv("XDG_CACHE_HOME", GLib.build_filenamev([root, "xdg-cache"]), true)
+}
+
+function test_transaction_install_remove() {
+    local root = GLib.build_filenamev([GLib.get_tmp_dir(), "ooblerg-app-test-" + GLib.uuid_string_random()])
+    use_test_root(root)
 
     local source_uri = make_fixture_repo(root)
     local index = Client.load_index(source_uri)
@@ -162,10 +190,108 @@ function test_transaction_install_remove() {
     assert(!U.file_exists(GLib.build_filenamev([Config.package_db_dir(), "runtime.pkg.json"])))
 }
 
+function test_transaction_install_rollback_after_failure() {
+    local root = GLib.build_filenamev([GLib.get_tmp_dir(), "ooblerg-app-test-" + GLib.uuid_string_random()])
+    use_test_root(root)
+
+    local source_uri = make_fixture_repo(root)
+    local index = Client.load_index(source_uri)
+    local status = Status.empty(source_uri)
+    local install_plan = Solver.install_plan(index, status, ["runtime"])
+    local installed_file = GLib.build_filenamev([Config.sysroot_path(), "mingw64", "bin", "runtime.txt"])
+
+    GLib.mkdir_with_parents(Config.status_dir(), 493)
+    U.write_text(Config.package_db_dir(), "not a directory\n")
+
+    local failed = false
+    try {
+        Transaction.apply(index, status, source_uri, install_plan)
+    } catch (e) {
+        failed = true
+    }
+    assert(failed)
+    assert(!U.file_exists(installed_file))
+    assert(!Status.installed(status, "runtime"))
+}
+
+function test_transaction_cleanup_leftovers() {
+    local root = GLib.build_filenamev([GLib.get_tmp_dir(), "ooblerg-app-test-" + GLib.uuid_string_random()])
+    use_test_root(root)
+
+    local source_uri = make_fixture_repo(root)
+    local index = Client.load_index(source_uri)
+    local status = Status.empty(source_uri)
+    local installed_file = GLib.build_filenamev([Config.sysroot_path(), "mingw64", "bin", "runtime.txt"])
+    U.write_text(installed_file, "stale\n")
+
+    local install_plan = Solver.install_plan(index, status, ["runtime"])
+    local blocked = false
+    try {
+        Transaction.apply(index, status, source_uri, install_plan)
+    } catch (e) {
+        blocked = e.tostring().find("unmanaged file") != null
+    }
+    assert(blocked)
+    assert(U.file_exists(installed_file))
+
+    local cleanup_plan = Solver.cleanup_plan(index, status, ["runtime"])
+    status = Transaction.apply(index, status, source_uri, cleanup_plan)
+    assert(!U.file_exists(installed_file))
+    assert(!Status.installed(status, "runtime"))
+
+    status = Transaction.apply(index, status, source_uri, install_plan)
+    assert(U.file_exists(installed_file))
+    assert(Status.installed(status, "runtime"))
+}
+
+function run_async_test(task) {
+    local loop = GLib.MainLoop.new(null, false)
+    local failure = null
+    task.then(function(_) {
+        loop.quit()
+    }, function(e) {
+        failure = e
+        loop.quit()
+    })
+    loop.run()
+    if (failure != null) throw failure
+}
+
+async function test_transaction_install_progress() {
+    local root = GLib.build_filenamev([GLib.get_tmp_dir(), "ooblerg-app-test-" + GLib.uuid_string_random()])
+    use_test_root(root)
+
+    local source_uri = make_fixture_repo(root)
+    local index = Client.load_index(source_uri)
+    local status = Status.empty(source_uri)
+    local install_plan = Solver.install_plan(index, status, ["runtime"])
+    local saw_download = false
+    local saw_verify = false
+    local saw_extract = false
+    local progress_events = 0
+
+    status = await Transaction.apply_async(index, status, source_uri, install_plan, null, function(event) {
+        progress_events++
+        if ("phase" in event && event.phase == "download") saw_download = true
+        if ("phase" in event && event.phase == "verify") saw_verify = true
+        if ("phase" in event && event.phase == "extract") saw_extract = true
+    })
+
+    assert(Status.installed(status, "runtime"))
+    assert(progress_events > 0)
+    assert(saw_download)
+    assert(saw_verify)
+    assert(saw_extract)
+}
+
 test_install_closure()
 test_installed_dependency_skipped()
 test_remove_orphan_cleanup()
-test_block_reverse_dependency()
+test_remove_dependent_cascade()
+test_path_integration_fallback()
 test_transaction_install_remove()
+test_transaction_install_rollback_after_failure()
+test_transaction_cleanup_leftovers()
+run_async_test(test_transaction_install_progress())
 
 return true

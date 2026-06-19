@@ -50,6 +50,8 @@ introspection, and `sqgipkg.json` packaging metadata.
 - [x] Show source refresh status in the status bar and log pane.
 - [x] Create sysroot metadata directories automatically on first use.
 - [x] Detect existing sysroot/status metadata with `Sysroot.looks_initialized()`.
+- [x] Add Windows user PATH controls for adding/removing
+      `%LOCALAPPDATA%/Ooblerg/sysroot/mingw64/bin`.
 - [ ] Add a first-run source URI flow.
 - [ ] Add an "initialize sysroot metadata" flow for an existing unpacked
       sysroot.
@@ -62,13 +64,13 @@ introspection, and `sqgipkg.json` packaging metadata.
 
 - [x] Implement install closure for requested packages, missing dependencies,
       already-installed packages, and missing package errors.
-- [x] Implement removal closure for requested packages, reverse-dependency
-      blocks, and automatic orphan cleanup.
+- [x] Implement removal closure for requested packages, cascading dependent
+      removals, and automatic orphan cleanup.
 - [x] Track manual vs automatic installs.
 - [x] Detect file conflicts before installation.
 - [x] Produce a transaction plan suitable for GUI review.
 - [x] Add solver tests for simple install, deep dependency install, already
-      installed dependencies, leaf removal, reverse-dependency blocking, orphan
+      installed dependencies, leaf removal, dependent removal cascade, orphan
       cleanup, missing dependencies, and conflicts.
 - [ ] Detect package conflicts declared in metadata.
 
@@ -79,8 +81,8 @@ introspection, and `sqgipkg.json` packaging metadata.
 - [x] Show package list columns for status, name, version, and summary.
 - [ ] Add package list size/download column.
 - [x] Add search/filter entry.
-- [ ] Add filter modes for all, installed, available, upgrades, and selected
-      changes.
+- [x] Add filter modes for all, installed, and available packages.
+- [ ] Add filter modes for upgrades and selected changes.
 - [ ] Add tags/categories if metadata includes tags.
 - [x] Show description, dependencies, artifact size, installed size, and source
       manifest path in the detail pane.
@@ -92,10 +94,11 @@ introspection, and `sqgipkg.json` packaging metadata.
 - [x] Show a review dialog before modifying the sysroot.
 - [x] Add working close/cancel and apply actions.
 - [x] Display packages to install, packages to remove, automatic dependencies,
-      automatic orphan removals, blocked removals, and warnings.
+      dependent removals, automatic orphan removals, and warnings.
 - [x] Make dependency-added packages visibly distinct from manually requested
       packages in the review text.
-- [x] Explain which installed package still depends on a blocked removal.
+- [x] Explain when removing a package will also remove installed packages that
+      depend on it.
 - [ ] Add download-size and installed-size totals to the review dialog.
 
 ## Download, Install, And Remove Engine
@@ -106,7 +109,7 @@ introspection, and `sqgipkg.json` packaging metadata.
 - [x] Download artifacts and verify SHA-256 before extraction.
 - [x] Log cache hits, downloads, verification, extraction, removal, and status
       saves to the operation log pane.
-- [ ] Add byte-level download progress.
+- [x] Add byte-level download progress.
 - [ ] Extract artifacts to a staging directory before moving files into the
       sysroot.
 - [x] Reject absolute paths, drive-prefixed paths, backslash paths, and `..` in
@@ -175,8 +178,10 @@ app/src/repo/client.nut       source URI, index fetch, manifest fetch
 app/src/repo/cache.nut        artifact cache and checksums
 app/src/sysroot/install.nut   extraction, conflict detection, filesystem mutation
 app/src/sysroot/paths.nut     fixed sysroot path helpers
+app/src/system/path.nut       Windows user PATH integration wrapper
 app/src/ui/window.nut         GTK application, main window, review dialog, smoke test
 app/test/package_tests.nut    model, solver, and fixture transaction tests
+app/native/                   Windows native GI module for registry-backed PATH edits
 ```
 
 ## Current Demo Status

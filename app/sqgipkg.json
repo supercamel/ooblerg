@@ -8,6 +8,9 @@
   ],
   "script": "main.nut",
   "target": "appimage",
+  "resources": [
+    "assets"
+  ],
   "sqgi_source": {
     "repo": "https://github.com/supercamel/sqgi.git",
     "ref": "3a561e5bc4429283c39380898133f747cc26206f"
@@ -41,7 +44,26 @@
     "msys2_prefix": "mingw64",
     "gdk_backend": "win32",
     "build_dir": "build-windows-x86_64",
-    "packages": [],
+    "nsis_options": {
+      "icon": "assets/icons/ooblerg-icon.ico"
+    },
+    "packages": [
+      "mingw-w64-x86_64-libsoup3"
+    ],
+    "native_projects": [
+      {
+        "dir": "native",
+        "build": [
+          "BUILD_DIR=build-windows-x86_64 MESON_CROSS_FILE=\"$SQGI_MESON_CROSS_FILE\" ./build.sh"
+        ],
+        "libraries": [
+          "build-windows-x86_64/libooblerg-win-1.0.dll"
+        ],
+        "typelibs": [
+          "build-windows-x86_64/OoblergWin-1.0.typelib"
+        ]
+      }
+    ],
     "build": [
       "cmake -E rm -rf \"$SQGI_WINDOWS_BUILD_DIR\"",
       "cmake -S \"$SQGI_SOURCE_DIR\" -B \"$SQGI_WINDOWS_BUILD_DIR\" -G Ninja -DCMAKE_TOOLCHAIN_FILE=\"$SQGI_WIN_CMAKE_TOOLCHAIN\" -DCMAKE_BUILD_TYPE=Release -DSQ_ENABLE_JIT=ON",

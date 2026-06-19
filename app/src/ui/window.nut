@@ -1,5 +1,6 @@
 local GLib = import("GLib")
 local Gio = import("Gio")
+local Gdk = import("Gdk", "4.0")
 local Gtk = import("Gtk", "4.0")
 local Pango = import("Pango", "1.0")
 
@@ -11,6 +12,7 @@ local Solver = import("../pkg/solver.nut")
 local Status = import("../pkg/status.nut")
 local Transaction = import("../pkg/transaction.nut")
 local Sysroot = import("../sysroot/paths.nut")
+local PathIntegration = import("../system/path.nut")
 
 local W = {}
 local State = {
@@ -18,8 +20,10 @@ local State = {
     status_db = null,
     index = null,
     selected_name = null,
+    package_filter = "all",
     busy = false,
     status_message = "Ready",
+    css_loaded = false,
     test_exit_code = 0,
 }
 
@@ -81,6 +85,51 @@ function icon_button(icon_name, tooltip) {
     return b
 }
 
+function install_css() {
+    if (State.css_loaded) return
+    local display = Gdk.Display.get_default()
+    if (display == null) return
+
+    local provider = Gtk.CssProvider.new()
+    local css = "" +
+        ".package-state-installed { color: #19703a; font-weight: 700; }\n" +
+        ".package-state-available { color: #6b7280; }\n"
+    provider.load_from_data(css, css.len())
+    Gtk.StyleContext.add_provider_for_display(display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    State.css_loaded = true
+}
+
+function icon_search_dirs() {
+    local dirs = []
+    local resources = GLib.getenv("SQGI_APP_RESOURCES")
+    if (resources != null && resources != "") {
+        dirs.append(GLib.build_filenamev([resources, "assets", "icons"]))
+    }
+
+    local cwd = GLib.get_current_dir()
+    dirs.append(GLib.build_filenamev([cwd, "assets", "icons"]))
+    dirs.append(GLib.build_filenamev([cwd, "app", "assets", "icons"]))
+    return dirs
+}
+
+function install_app_icon(win = null) {
+    local display = Gdk.Display.get_default()
+    if (display == null) return false
+
+    local theme = Gtk.IconTheme.get_for_display(display)
+    foreach (dir in icon_search_dirs()) {
+        if (U.is_directory(dir)) theme.add_search_path(dir)
+    }
+
+    local icon_name = Config.APP_ID
+    if (!theme.has_icon(icon_name) && theme.has_icon("ooblerg-icon")) icon_name = "ooblerg-icon"
+    if (!theme.has_icon(icon_name)) return false
+
+    Gtk.Window.set_default_icon_name(icon_name)
+    if (win != null) win.set_icon_name(icon_name)
+    return true
+}
+
 function set_status(text) {
     State.status_message = text
     if ("status" in W) W.status.set_text(text)
@@ -95,11 +144,86 @@ function set_busy(value, text = "") {
     }
     if ("activity" in W) {
         W.activity.set_visible(value)
-        W.activity.set_fraction(value ? 0.25 : 0.0)
+        W.activity.set_fraction(0.0)
         W.activity.set_text(value ? (text == "" ? "Working" : text) : "")
     }
     if (text != "") set_status(text)
     else update_status_bar()
+}
+
+function clamp01(value) {
+    if (value < 0.0) return 0.0
+    if (value > 1.0) return 1.0
+    return value
+}
+
+function progress_subject(event) {
+    if ("package" in event && event.package != "") return event.package
+    if ("filename" in event && event.filename != "") return event.filename
+    if ("path" in event && event.path != "") return GLib.path_get_basename(event.path)
+    return "package"
+}
+
+function progress_count_text(event) {
+    if ("current" in event && "total" in event && event.total > 0) {
+        return " (" + event.current + "/" + event.total + ")"
+    }
+    return ""
+}
+
+function progress_percent_text(event) {
+    if (!("fraction" in event)) return ""
+    return format("%.0f%%", clamp01(event.fraction).tofloat() * 100.0)
+}
+
+function progress_status_text(event) {
+    local phase = "phase" in event ? event.phase : "work"
+    local subject = progress_subject(event)
+    local count = progress_count_text(event)
+    local percent = progress_percent_text(event)
+
+    if (phase == "download") {
+        local bytes = "bytes" in event ? U.human_size(event.bytes) : ""
+        local total = "total" in event && event.total > 0 ? U.human_size(event.total) : "?"
+        local tail = percent == "" ? bytes + " / " + total : bytes + " / " + total + "  " + percent
+        return "Downloading " + subject + count + ": " + tail
+    }
+    if (phase == "verify") {
+        local tail = percent == "" ? "" : ": " + percent
+        return "Verifying " + subject + count + tail
+    }
+    if (phase == "extract") {
+        local tail = percent == "" ? "" : ": " + percent
+        return "Extracting " + subject + count + tail
+    }
+    if (phase == "cleanup") {
+        if ("message" in event) return event.message
+        return "Cleaning " + subject + count
+    }
+    if (phase == "manifest") return "Loading manifest " + subject + count
+    if (phase == "remove") return "Removing " + subject + count
+    if (phase == "status" && "message" in event) return event.message
+    if (phase == "prepare" && "message" in event) return event.message
+    return "Working on " + subject + count
+}
+
+function update_transaction_progress(event) {
+    if (event == null) return
+    State.busy = true
+    local text = progress_status_text(event)
+    if ("spinner" in W) W.spinner.start()
+    if ("activity" in W) {
+        W.activity.set_visible(true)
+        local percent = progress_percent_text(event)
+        if ("fraction" in event) {
+            W.activity.set_fraction(clamp01(event.fraction))
+            W.activity.set_text(percent)
+        } else {
+            W.activity.pulse()
+            W.activity.set_text("")
+        }
+    }
+    set_status(text)
 }
 
 function append_log(text) {
@@ -132,6 +256,13 @@ function clear_children(container) {
 function installed_text(name) {
     if (Status.installed(State.status_db, name)) return "installed"
     return "available"
+}
+
+function package_state_label(name) {
+    local l = row_label(installed_text(name), 10)
+    if (Status.installed(State.status_db, name)) l.add_css_class("package-state-installed")
+    else l.add_css_class("package-state-available")
+    return l
 }
 
 function installed_count() {
@@ -172,6 +303,44 @@ function update_status_bar() {
     if ("status_source" in W) {
         local source = State.settings != null && "source_uri" in State.settings ? State.settings.source_uri : ""
         W.status_source.set_text(source == "" ? "Source not set" : source)
+    }
+
+    if ("path_state" in W) {
+        local path_ready = PathIntegration.native_ready()
+        if ("path_add_button" in W) W.path_add_button.set_sensitive(path_ready)
+        if ("path_remove_button" in W) W.path_remove_button.set_sensitive(path_ready)
+        if (!path_ready) {
+            W.path_state.set_text("Windows PATH integration unavailable")
+        } else if (PathIntegration.is_on_user_path()) {
+            W.path_state.set_text("mingw64/bin is on user PATH")
+        } else {
+            W.path_state.set_text("mingw64/bin is not on user PATH")
+        }
+    }
+}
+
+function refresh_path_state(text = "") {
+    if (text != "") set_status(text)
+    update_status_bar()
+}
+
+function add_sysroot_to_path() {
+    try {
+        PathIntegration.add_to_user_path()
+        refresh_path_state("Added mingw64/bin to user PATH")
+        append_log("added user PATH entry: " + PathIntegration.mingw_bin_path() + "\n")
+    } catch (e) {
+        show_error(e)
+    }
+}
+
+function remove_sysroot_from_path() {
+    try {
+        PathIntegration.remove_from_user_path()
+        refresh_path_state("Removed mingw64/bin from user PATH")
+        append_log("removed user PATH entry: " + PathIntegration.mingw_bin_path() + "\n")
+    } catch (e) {
+        show_error(e)
     }
 }
 
@@ -249,6 +418,41 @@ function package_matches(pkg, filter) {
     return hay.find(filter) != null
 }
 
+function package_filter_matches(pkg) {
+    local installed = Status.installed(State.status_db, pkg.name)
+    if (State.package_filter == "installed") return installed
+    if (State.package_filter == "available") return !installed
+    return true
+}
+
+function normalize_package_filter(mode) {
+    if (mode == "installed" || mode == "available") return mode
+    return "all"
+}
+
+function set_package_filter(mode) {
+    mode = normalize_package_filter(mode)
+    State.package_filter = mode
+    if ("filter_mode_buttons" in W) {
+        foreach (key, button in W.filter_mode_buttons) {
+            local want = key == mode
+            if (button.get_active() != want) button.set_active(want)
+        }
+    }
+    rebuild_package_list()
+    rebuild_detail()
+}
+
+function filter_mode_button(mode, text, group = null) {
+    local b = Gtk.ToggleButton.new_with_label(text)
+    if (group != null) b.set_group(group)
+    b.set_tooltip_text(text + " packages")
+    b.connect("toggled", function() {
+        if (b.get_active() && State.package_filter != mode) set_package_filter(mode)
+    })
+    return b
+}
+
 function rebuild_package_list() {
     if (!("package_list" in W)) return
     clear_children(W.package_list)
@@ -263,12 +467,13 @@ function rebuild_package_list() {
     local filter = "filter_entry" in W ? U.trim(W.filter_entry.get_text()).tolower() : ""
 
     foreach (pkg in Manifest.sorted_packages(State.index)) {
+        if (!package_filter_matches(pkg)) continue
         if (!package_matches(pkg, filter)) continue
         local row = Gtk.ListBoxRow.new()
         W.package_row_names.append(pkg.name)
         W.package_rows[pkg.name] <- row
         local box = hbox(8)
-        box.append(row_label(installed_text(pkg.name), 10))
+        box.append(package_state_label(pkg.name))
         local name = row_label(pkg.name, 24)
         name.set_tooltip_text(pkg.name)
         box.append(name)
@@ -280,6 +485,7 @@ function rebuild_package_list() {
         row.set_child(margins(box, 4))
         W.package_list.append(row)
     }
+    if (State.selected_name != null && !(State.selected_name in W.package_rows)) State.selected_name = null
     update_status_bar()
 }
 
@@ -307,6 +513,7 @@ function plan_change_count(plan) {
     local n = 0
     if (plan != null && "install" in plan) n += plan.install.len()
     if (plan != null && "remove" in plan) n += plan.remove.len()
+    if (plan != null && "cleanup" in plan) n += plan.cleanup.len()
     return n
 }
 
@@ -324,11 +531,14 @@ async function execute_plan(plan) {
         return
     }
 
-    local action_text = plan.action == "remove" ? "Removing packages" : "Installing packages"
+    local action_text = "Installing packages"
+    if (plan.action == "remove") action_text = "Removing packages"
+    else if (plan.action == "cleanup") action_text = "Cleaning leftovers"
     set_busy(true, action_text)
     await sqgi.sleep(0)
-    State.status_db = Transaction.apply(State.index, State.status_db, State.settings.source_uri, plan,
-        function(line) { append_log(line + "\n") })
+    State.status_db = await Transaction.apply_async(State.index, State.status_db, State.settings.source_uri, plan,
+        function(line) { append_log(line + "\n") },
+        function(event) { update_transaction_progress(event) })
     rebuild_package_list()
     rebuild_detail()
     set_busy(false, "Applied " + count + " package changes")
@@ -374,6 +584,13 @@ function plan_install_selected() {
 function plan_remove_selected() {
     local pkg = require_selected()
     local plan = Solver.remove_plan(State.index, State.status_db, [pkg.name])
+    show_plan_dialog(plan, function() { run_task(execute_plan(plan)) })
+    return plan
+}
+
+function plan_cleanup_selected() {
+    local pkg = require_selected()
+    local plan = Solver.cleanup_plan(State.index, State.status_db, [pkg.name])
     show_plan_dialog(plan, function() { run_task(execute_plan(plan)) })
     return plan
 }
@@ -473,10 +690,23 @@ async function drive_gtk_smoke_test(app, options) {
         check_gui_test(State.index != null, "repository index was not loaded")
         check_gui_test(State.index.packages.len() > 0, "repository index contains no packages")
         check_gui_test(package_list_count() > 0, "package list did not populate")
+        check_gui_test("win" in W && W.win.get_icon_name() == Config.APP_ID,
+            "window icon name was not set to " + Config.APP_ID)
         check_gui_test(widget_text("status_counts").find("packages") != null, "status bar package counts did not update")
         check_gui_test(widget_text("status_source").find(source_uri) != null, "status bar source URI did not update")
+        check_gui_test(widget_text("path_state").find("PATH") != null, "Windows PATH status did not initialize")
 
         W.filter_entry.set_text(package_name)
+        await sqgi.sleep(0)
+        set_package_filter("installed")
+        await sqgi.sleep(0)
+        check_gui_test(find_package_row(package_name) == null,
+            "fresh sysroot unexpectedly showed package in installed filter: " + package_name)
+        set_package_filter("available")
+        await sqgi.sleep(0)
+        check_gui_test(find_package_row(package_name) != null,
+            "available filter hid uninstalled package: " + package_name)
+        set_package_filter("all")
         await sqgi.sleep(0)
         local row = find_package_row(package_name)
         check_gui_test(row != null, "package row not found after filtering: " + package_name)
@@ -516,6 +746,18 @@ async function drive_gtk_smoke_test(app, options) {
         rebuild_package_list()
         row = find_package_row(package_name)
         check_gui_test(row != null, "installed package row disappeared: " + package_name)
+        set_package_filter("installed")
+        await sqgi.sleep(0)
+        check_gui_test(find_package_row(package_name) != null,
+            "installed filter hid installed package: " + package_name)
+        set_package_filter("available")
+        await sqgi.sleep(0)
+        check_gui_test(find_package_row(package_name) == null,
+            "available filter showed installed package: " + package_name)
+        set_package_filter("all")
+        await sqgi.sleep(0)
+        row = find_package_row(package_name)
+        check_gui_test(row != null, "package row did not return after switching back to all: " + package_name)
         select_package(package_name)
         await sqgi.sleep(0)
         local remove_plan = plan_remove_selected()
@@ -532,6 +774,15 @@ async function drive_gtk_smoke_test(app, options) {
         if (installed_file != null) {
             check_gui_test(!U.file_exists(installed_file), "installed payload file was not removed: " + installed_file)
         }
+        set_package_filter("installed")
+        await sqgi.sleep(0)
+        check_gui_test(find_package_row(package_name) == null,
+            "installed filter showed removed package: " + package_name)
+        set_package_filter("available")
+        await sqgi.sleep(0)
+        check_gui_test(find_package_row(package_name) != null,
+            "available filter hid removed package: " + package_name)
+        set_package_filter("all")
 
         print("[OK] gtk smoke: loaded " + State.index.packages.len() +
             " packages, installed and removed " + package_name + "\n")
@@ -571,6 +822,21 @@ function build_header(root) {
     sysroot.set_hexpand(true)
     sysroot_row.append(sysroot)
     root.append(margins(sysroot_row, 8))
+
+    local path_row = hbox(8)
+    path_row.append(label("Windows PATH", 0.0))
+    remember("path_state", status_label("", 36))
+    W.path_state.set_hexpand(true)
+    path_row.append(W.path_state)
+    local add_path = text_button("list-add-symbolic", "Add", "Add mingw64/bin to the current user's Windows PATH")
+    remember("path_add_button", add_path)
+    add_path.connect("clicked", function() { add_sysroot_to_path() })
+    path_row.append(add_path)
+    local remove_path = text_button("list-remove-symbolic", "Remove", "Remove mingw64/bin from the current user's Windows PATH")
+    remember("path_remove_button", remove_path)
+    remove_path.connect("clicked", function() { remove_sysroot_from_path() })
+    path_row.append(remove_path)
+    root.append(margins(path_row, 8))
 }
 
 function build_body(root) {
@@ -582,10 +848,29 @@ function build_body(root) {
     left.set_hexpand(true)
     left.set_vexpand(true)
     left.set_size_request(720, -1)
+
+    local filter_row = hbox(8)
     remember("filter_entry", Gtk.SearchEntry.new())
+    W.filter_entry.set_hexpand(true)
     W.filter_entry.set_placeholder_text("Search packages")
     W.filter_entry.connect("changed", function() { rebuild_package_list() })
-    left.append(W.filter_entry)
+    filter_row.append(W.filter_entry)
+
+    local modes = hbox(0)
+    modes.add_css_class("linked")
+    remember("filter_mode_buttons", {})
+    local all_mode = filter_mode_button("all", "All")
+    local installed_mode = filter_mode_button("installed", "Installed", all_mode)
+    local available_mode = filter_mode_button("available", "Available", all_mode)
+    W.filter_mode_buttons["all"] <- all_mode
+    W.filter_mode_buttons["installed"] <- installed_mode
+    W.filter_mode_buttons["available"] <- available_mode
+    modes.append(all_mode)
+    modes.append(installed_mode)
+    modes.append(available_mode)
+    all_mode.set_active(true)
+    filter_row.append(modes)
+    left.append(filter_row)
 
     remember("package_list", Gtk.ListBox.new())
     W.package_list.set_selection_mode(Gtk.SelectionMode.single)
@@ -618,6 +903,11 @@ function build_body(root) {
         try { plan_remove_selected() } catch (e) { show_error(e) }
     })
     actions.append(remove)
+    local cleanup = text_button("edit-clear-symbolic", "Clean", "Clean unmanaged files left by failed installs")
+    cleanup.connect("clicked", function() {
+        try { plan_cleanup_selected() } catch (e) { show_error(e) }
+    })
+    actions.append(cleanup)
     right.append(actions)
 
     local log = make_textview(true)
@@ -642,7 +932,7 @@ function build_status(root) {
 
     remember("activity", Gtk.ProgressBar.new())
     W.activity.set_show_text(true)
-    W.activity.set_size_request(160, -1)
+    W.activity.set_size_request(220, -1)
     W.activity.set_visible(false)
     bar.append(W.activity)
 
@@ -682,6 +972,8 @@ function create_app(options = null) {
         win.set_title(Config.APP_NAME)
         win.set_default_size(1200, 760)
         remember("win", win)
+        install_css()
+        install_app_icon(win)
 
         local root = vbox(0)
         win.set_child(root)

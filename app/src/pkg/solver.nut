@@ -46,6 +46,21 @@ function install_plan(index, status, requests) {
     }
 }
 
+function cleanup_plan(index, status, requests) {
+    local plan = install_plan(index, status, requests)
+    return {
+        action = "cleanup",
+        requested = requests,
+        install = [],
+        remove = [],
+        cleanup = plan.install,
+        blocked = [],
+        warnings = [
+            "Only unmanaged files listed in these package manifests will be removed.",
+        ],
+    }
+}
+
 function installed_depends_on(repo, installed, pkg_name, dep_name) {
     if (!(pkg_name in repo)) return false
     foreach (dep in Manifest.dependency_names(repo[pkg_name])) {
@@ -54,13 +69,36 @@ function installed_depends_on(repo, installed, pkg_name, dep_name) {
     return false
 }
 
+function add_dependent_removals(repo, installed, remove_set) {
+    local dependents = []
+    local changed = true
+    while (changed) {
+        changed = false
+        foreach (pkg_name in U.sorted_keys(installed)) {
+            if (pkg_name in remove_set) continue
+            foreach (target in U.sorted_keys(remove_set)) {
+                if (installed_depends_on(repo, installed, pkg_name, target)) {
+                    remove_set[pkg_name] <- true
+                    dependents.append({ name = pkg_name, depends_on = target })
+                    changed = true
+                    break
+                }
+            }
+        }
+    }
+    return dependents
+}
+
+function append_remove_action(out, repo, name, reason) {
+    out.append(action(name, name in repo ? repo[name] : null, reason))
+}
+
 function remove_plan(index, status, requests) {
     Manifest.validate_index(index)
     local repo = Manifest.package_map(index)
     local installed = status != null && "packages" in status ? status.packages : {}
     local remove_set = {}
     local remove = []
-    local blocked = []
     local warnings = []
 
     foreach (name in requests) {
@@ -71,28 +109,20 @@ function remove_plan(index, status, requests) {
         remove_set[name] <- true
     }
 
-    foreach (pkg_name in U.sorted_keys(installed)) {
-        if (pkg_name in remove_set) continue
-        foreach (target in U.sorted_keys(remove_set)) {
-            if (installed_depends_on(repo, installed, pkg_name, target)) {
-                blocked.append({ name = target, required_by = pkg_name })
-            }
-        }
-    }
-
-    if (blocked.len() > 0) {
-        return {
-            action = "remove",
-            requested = requests,
-            install = [],
-            remove = [],
-            blocked = blocked,
-            warnings = warnings,
-        }
-    }
+    local dependents = add_dependent_removals(repo, installed, remove_set)
 
     foreach (name in U.sorted_keys(remove_set)) {
-        remove.append(action(name, name in repo ? repo[name] : null, "manual"))
+        local is_requested = false
+        foreach (request in requests) {
+            if (request == name) {
+                is_requested = true
+                break
+            }
+        }
+        if (is_requested) append_remove_action(remove, repo, name, "manual")
+    }
+    foreach (item in dependents) {
+        append_remove_action(remove, repo, item.name, "dependent")
     }
 
     local keep = {}
@@ -117,7 +147,7 @@ function remove_plan(index, status, requests) {
         local manual = !("manual" in item) || item.manual
         if (!manual) {
             remove_set[name] <- true
-            remove.append(action(name, name in repo ? repo[name] : null, "orphan"))
+            append_remove_action(remove, repo, name, "orphan")
         }
     }
 
@@ -126,9 +156,18 @@ function remove_plan(index, status, requests) {
         requested = requests,
         install = [],
         remove = remove,
-        blocked = blocked,
+        blocked = [],
+        dependents = dependents,
         warnings = warnings,
     }
+}
+
+function remove_reason_text(item) {
+    if (!("reason" in item)) return ""
+    if (item.reason == "manual") return "requested"
+    if (item.reason == "dependent") return "depends on removed package"
+    if (item.reason == "orphan") return "automatic orphan"
+    return item.reason
 }
 
 function describe_plan(plan) {
@@ -151,7 +190,19 @@ function describe_plan(plan) {
     if ("remove" in plan && plan.remove.len() > 0) {
         lines.append("Remove")
         foreach (item in plan.remove) {
-            lines.append("  " + item.name + (item.reason == "orphan" ? " (automatic orphan)" : ""))
+            local reason = remove_reason_text(item)
+            lines.append("  " + item.name + (reason == "" ? "" : " (" + reason + ")"))
+        }
+        if ("dependents" in plan && plan.dependents.len() > 0) {
+            lines.append("")
+            lines.append("This will also remove installed packages that depend on the requested package.")
+        }
+        lines.append("")
+    }
+    if ("cleanup" in plan && plan.cleanup.len() > 0) {
+        lines.append("Clean Leftovers")
+        foreach (item in plan.cleanup) {
+            lines.append("  " + item.name + " " + item.version)
         }
         lines.append("")
     }
@@ -166,6 +217,7 @@ function describe_plan(plan) {
 
 return {
     install_plan = install_plan,
+    cleanup_plan = cleanup_plan,
     remove_plan = remove_plan,
     describe_plan = describe_plan,
 }
