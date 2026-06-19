@@ -29,6 +29,10 @@ Windows sysroot under the user's AppData directory.
 - No bundled Unix shell in the default package set; build tools should run as
   Windows-native executables and integrate with the Windows PATH.
 
+The GUI owns current-user Windows environment integration. It can add or remove
+the fixed sysroot `mingw64/bin` directory from the user's PATH through a small
+native GI module; this is not a system-wide installer action.
+
 ## Repository Layout
 
 The published repository should be static-file friendly, even though we will
@@ -224,8 +228,8 @@ The first solver should be deterministic and conservative:
    - Add missing dependencies before the requested package.
    - Fail if a dependency cannot be found or conflicts with installed packages.
 4. For removal:
-   - Refuse to remove a package needed by another manual package unless the user
-     chooses a cascading removal.
+   - Add installed packages that depend on the requested package to the removal
+     plan as dependent removals.
    - Calculate automatic packages that become orphaned.
    - Present the full removal plan before touching the sysroot.
 5. Produce a transaction plan with ordered operations.
@@ -273,6 +277,12 @@ Removal sequence:
 
 Atomicity is limited by filesystem operations, but we can still avoid corrupt
 metadata by writing JSON to `.tmp` and renaming it into place.
+
+The GTK client uses an async transaction path for long-running work. Artifact
+downloads stream to `.part` files in chunks, SHA-256 verification streams from
+disk, and `tar` listing/extraction runs through `Gio.Subprocess` so the main
+loop can keep the status bar responsive. Progress events carry the phase,
+package name, byte counts when known, and current transaction item.
 
 ## GUI App Responsibilities
 

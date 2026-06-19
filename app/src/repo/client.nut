@@ -1,4 +1,5 @@
 local GLib = import("GLib")
+local Gio = import("Gio")
 local U = import("../util.nut")
 local Manifest = import("../pkg/manifest.nut")
 
@@ -61,6 +62,94 @@ function fetch_bytes(uri) {
     return bytes.get_data()
 }
 
+function query_local_size(path) {
+    try {
+        return Gio.File.new_for_path(path).query_info("standard::size", 0, null).get_size()
+    } catch (e) {
+        return -1
+    }
+}
+
+function report_download(progress, uri, output_path, bytes_written, bytes_total, done) {
+    if (progress == null) return
+    local event = {
+        phase = "download",
+        uri = uri,
+        path = output_path,
+        bytes = bytes_written,
+        total = bytes_total,
+        done = done,
+    }
+    if (bytes_total > 0) event.fraction <- bytes_written.tofloat() / bytes_total.tofloat()
+    progress(event)
+}
+
+function stream_to_file(uri, in_stream, output_path, bytes_total, progress = null) {
+    local task = sqgi.Task()
+    local out_file = Gio.File.new_for_path(output_path)
+    local out_stream = out_file.replace(null, false, Gio.FileCreateFlags.none, null)
+
+    local CHUNKS_PER_TICK = 8
+    local CHUNK_SIZE = 65536
+    local bytes_written = 0
+
+    report_download(progress, uri, output_path, bytes_written, bytes_total, false)
+    sqgi.timeout_add(0, function() {
+        try {
+            for (local i = 0; i < CHUNKS_PER_TICK; i++) {
+                local chunk = in_stream.read_bytes(CHUNK_SIZE, null)
+                local n = chunk.get_size()
+                if (n == 0) {
+                    try { out_stream.close_sync(null) } catch (_) {}
+                    try { in_stream.close_sync(null) } catch (_) {}
+                    report_download(progress, uri, output_path, bytes_written, bytes_total, true)
+                    task.resolve(bytes_written)
+                    return false
+                }
+                out_stream.write_bytes(chunk, null)
+                bytes_written += n
+            }
+            report_download(progress, uri, output_path, bytes_written, bytes_total, false)
+            return true
+        } catch (e) {
+            try { out_stream.close_sync(null) } catch (_) {}
+            try { in_stream.close_sync(null) } catch (_) {}
+            task.reject(e)
+            return false
+        }
+    })
+
+    return task
+}
+
+function fetch_to_file(uri, output_path, progress = null) {
+    uri = U.trim(uri)
+    if (uri == "") throw "source URI is blank"
+
+    if (!U.starts_with(uri, "http://") && !U.starts_with(uri, "https://")) {
+        local path = local_path_from_uri(uri)
+        local in_stream = Gio.File.new_for_path(path).read(null)
+        return stream_to_file(uri, in_stream, output_path, query_local_size(path), progress)
+    }
+
+    if (Soup == null) throw "libsoup 3.0 is not available in this SQGI runtime"
+    local msg = Soup.Message.new("GET", uri)
+    if (msg == null) throw "invalid URI: " + uri
+    local session = Soup.Session.new()
+    local in_stream = session.send(msg, null)
+    local status = msg.get_status()
+    if (status < 200 || status >= 300) {
+        try { in_stream.close_sync(null) } catch (_) {}
+        throw "HTTP " + status + " for " + uri
+    }
+
+    local bytes_total = -1
+    try {
+        bytes_total = msg.get_response_headers().get_content_length()
+    } catch (e) {}
+    return stream_to_file(uri, in_stream, output_path, bytes_total, progress)
+}
+
 function fetch_text(uri) {
     return fetch_bytes(uri)
 }
@@ -83,6 +172,7 @@ function load_package_manifest(source_uri, pkg) {
 return {
     resolve_uri = resolve_uri,
     fetch_bytes = fetch_bytes,
+    fetch_to_file = fetch_to_file,
     fetch_text = fetch_text,
     load_index = load_index,
     load_package_manifest = load_package_manifest,
