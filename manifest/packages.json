@@ -7,7 +7,10 @@
       "name": "mingw-w64-runtime",
       "kind": "runtime-seed",
       "version_package": "mingw-w64-x86-64-dev",
-      "version_suffix": "+ooblerg2",
+      "version_suffix": "+ooblerg3",
+      "replaces": [
+        "gcc"
+      ],
       "description": "Ubuntu MinGW headers, CRT, import libraries, and active GCC runtime DLLs repackaged into the ooblerg sysroot."
     },
     {
@@ -166,6 +169,9 @@
       "deps": [
         "mingw-w64-runtime"
       ],
+      "pre_configure": [
+        "autoreconf -fi"
+      ],
       "configure": [
         "--host=x86_64-w64-mingw32",
         "--build=${BUILD_TRIPLET}",
@@ -301,6 +307,7 @@
       "name": "gcc",
       "source": "gcc-13",
       "version_package": "gcc-13",
+      "version_suffix": "+ooblerg1",
       "build_system": "custom",
       "deps": [
         "mingw-w64-runtime",
@@ -316,6 +323,7 @@
         "src=$PWD; build=${ROOT}/out/build/gcc; upstream=${ROOT}/out/build/gcc-src; rm -rf \"$build\" \"$upstream\"; mkdir -p \"$build\" \"$upstream\"; tar -C \"$upstream\" --strip-components=1 -xf \"$src/gcc-13.3.0.tar.xz\"; cd \"$build\" && \"$upstream/configure\" --build=${BUILD_TRIPLET} --host=x86_64-w64-mingw32 --target=x86_64-w64-mingw32 --prefix=/mingw64 --with-local-prefix=/mingw64 --disable-bootstrap --disable-nls --disable-multilib --disable-win32-registry --enable-languages=c,c++ --enable-shared --enable-threads=win32 --enable-libstdcxx --with-system-zlib --with-gmp=${ROOT}/out/sysroot/mingw64 --with-mpfr=${ROOT}/out/sysroot/mingw64 --with-mpc=${ROOT}/out/sysroot/mingw64 --with-isl=${ROOT}/out/sysroot/mingw64 --with-zstd=${ROOT}/out/sysroot/mingw64",
         "make -C ${ROOT}/out/build/gcc -j${JOBS} STAGE1_LIBS='-L${ROOT}/out/sysroot/mingw64/lib' POSTSTAGE1_LIBS='-L${ROOT}/out/sysroot/mingw64/lib'",
         "make -C ${ROOT}/out/build/gcc DESTDIR=${DESTDIR} install",
+        "rm -f ${DESTDIR}/mingw64/bin/libstdc++-6.dll",
         "find ${DESTDIR}/mingw64 -name '*.la' -delete"
       ]
     },
@@ -323,6 +331,7 @@
       "name": "vala",
       "source": "vala",
       "version_package": "valac",
+      "version_suffix": "+ooblerg1",
       "build_system": "autotools",
       "deps": [
         "mingw-w64-runtime",
@@ -343,6 +352,9 @@
         "make",
         "DESTDIR=${DESTDIR}",
         "install"
+      ],
+      "post_install": [
+        "cp ${DESTDIR}/mingw64/lib/bin/libvalaccodegen.dll ${DESTDIR}/mingw64/bin/libvalaccodegen.dll"
       ]
     },
     {
@@ -423,6 +435,88 @@
         "INTROSPECTION_COMPILER=/usr/bin/g-ir-compiler",
         "INTROSPECTION_SCANNER=${ROOT}/tools/ooblerg-g-ir-scanner",
         "install"
+      ],
+      "post_install": [
+        "mkdir -p ${DESTDIR}/mingw64/lib/pkgconfig",
+        "cp gee-0.8.pc ${DESTDIR}/mingw64/lib/pkgconfig/gee-0.8.pc"
+      ]
+    },
+    {
+      "name": "granite-7",
+      "source": "granite-7",
+      "version_package": "libgranite-7-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "libgee",
+        "gtk4",
+        "vala"
+      ],
+      "patches": [
+        "ports/granite-7/patches/0001-granite-cross-use-host-machine-system.patch"
+      ],
+      "meson_options": [
+        "-Dintrospection=true",
+        "-Ddocumentation=false"
+      ],
+      "description": "Granite 7 GTK4 widget and application framework library for elementary-style apps, GLib, GObject, Vala, SQGI, and introspection.",
+      "license": {
+        "spdx": "LGPL-3.0-or-later"
+      },
+      "tags": [
+        "granite",
+        "elementary",
+        "gtk4",
+        "widgets",
+        "gobject",
+        "vala",
+        "introspection"
+      ]
+    },
+    {
+      "name": "libadwaita",
+      "source": "libadwaita-1",
+      "version_package": "libadwaita-1-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "appstream",
+        "fribidi",
+        "gtk4",
+        "vala"
+      ],
+      "patches": [
+        "ports/libadwaita/patches/0001-libadwaita-guard-yaru-portal-on-non-portal-platforms.patch",
+        "ports/libadwaita/patches/0002-libadwaita-use-sysroot-gir-dir-for-vapi.patch"
+      ],
+      "meson_options": [
+        "-Dintrospection=enabled",
+        "-Dvapi=true",
+        "-Dgtk_doc=false",
+        "-Dtests=false",
+        "-Dexamples=false",
+        "-Dyaru-accent-colors=false"
+      ],
+      "description": "Libadwaita GTK4 adaptive widget and application library for modern GNOME-style apps, Adw widgets, AboutDialog, GLib, GObject, Vala, SQGI, and introspection.",
+      "license": {
+        "spdx": "LGPL-2.1-or-later"
+      },
+      "tags": [
+        "libadwaita",
+        "adwaita",
+        "adw",
+        "gtk4",
+        "gnome",
+        "widgets",
+        "adaptive",
+        "about-dialog",
+        "gobject",
+        "vala",
+        "introspection"
       ]
     },
     {
@@ -627,6 +721,7 @@
       "name": "gst-plugins-bad",
       "source": "gst-plugins-bad1.0",
       "version_package": "gstreamer1.0-plugins-bad",
+      "version_suffix": "+ooblerg1",
       "build_system": "meson",
       "patches": [
         "ports/gstreamer-windows/patches/0001-gst-plugins-bad-mingw-d3d11-wasapi2.patch"
@@ -686,7 +781,7 @@
         "-Dinterlace=enabled",
         "-Divfparse=enabled",
         "-Divtc=enabled",
-        "-Djpegformat=enabled",
+        "-Djpegformat=disabled",
         "-Dmpegdemux=enabled",
         "-Dmpegpsmux=enabled",
         "-Dmpegtsdemux=enabled",
@@ -708,6 +803,12 @@
         "-Dwinks=enabled",
         "-Dwinscreencap=enabled",
         "-Dy4m=enabled"
+      ],
+      "post_install": [
+        "rm -f ${DESTDIR}/mingw64/lib/gstreamer-1.0/libgstjpegformat.dll ${DESTDIR}/mingw64/lib/gstreamer-1.0/libgstjpegformat.dll.a",
+        "rm -f ${DESTDIR}/mingw64/bin/libgstbasecamerabinsrc-1.0-0.dll ${DESTDIR}/mingw64/bin/libgstphotography-1.0-0.dll ${DESTDIR}/mingw64/lib/libgstbasecamerabinsrc-1.0.dll.a ${DESTDIR}/mingw64/lib/libgstphotography-1.0.dll.a",
+        "rm -rf ${DESTDIR}/mingw64/include/gstreamer-1.0/gst/basecamerabinsrc",
+        "rm -f ${DESTDIR}/mingw64/include/gstreamer-1.0/gst/interfaces/photography-enumtypes.h ${DESTDIR}/mingw64/include/gstreamer-1.0/gst/interfaces/photography-prelude.h ${DESTDIR}/mingw64/include/gstreamer-1.0/gst/interfaces/photography.h"
       ]
     },
     {
@@ -1186,6 +1287,113 @@
       ]
     },
     {
+      "name": "gserial",
+      "source": "https://github.com/supercamel/gserial.git",
+      "source_type": "git",
+      "source_ref": "ab77761232bcb05d2642fe849806aba46714289f",
+      "version": "0.2.0+git.ab77761",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection"
+      ],
+      "description": "GObject serial port library with GObject Introspection bindings for GLib, GTK, SQGI, and Vala applications.",
+      "post_install": [
+        "mkdir -p ${DESTDIR}${PREFIX}/share/gir-1.0",
+        "test ! -f ${DESTDIR}${PREFIX}/lib/girepository-1.0/GSerial-1.0.gir || mv ${DESTDIR}${PREFIX}/lib/girepository-1.0/GSerial-1.0.gir ${DESTDIR}${PREFIX}/share/gir-1.0/GSerial-1.0.gir"
+      ],
+      "license": {
+        "spdx": "MIT"
+      },
+      "tags": [
+        "serial",
+        "gobject",
+        "introspection"
+      ]
+    },
+    {
+      "name": "gautogui",
+      "source": "https://github.com/supercamel/gautogui.git",
+      "source_type": "git",
+      "source_ref": "dbd0b1cb2391a51f4ceea459eb35963c774a01b1",
+      "version": "0.1.0+git.dbd0b1c",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection"
+      ],
+      "description": "GObject GUI automation and input monitoring library for mouse, keyboard, text entry, global hooks, Win32 SendInput, GLib, GTK, SQGI, and Vala applications.",
+      "meson_options": [
+        "-Dintrospection=enabled"
+      ],
+      "license": {
+        "spdx": "MIT"
+      },
+      "tags": [
+        "automation",
+        "input",
+        "mouse",
+        "keyboard",
+        "gobject",
+        "introspection"
+      ]
+    },
+    {
+      "name": "gjoystick",
+      "source": "https://github.com/supercamel/gjoystick.git",
+      "source_type": "git",
+      "source_ref": "330d283afc9de325d9d1c9ac310935b33912654d",
+      "version": "0.2.0+git.330d283",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection"
+      ],
+      "description": "GObject joystick and gamepad library for XInput, WinMM, controller buttons, axes, GLib, GTK, SQGI, Vala, and introspection applications.",
+      "license": {
+        "spdx": "MIT"
+      },
+      "tags": [
+        "joystick",
+        "gamepad",
+        "controller",
+        "xinput",
+        "winmm",
+        "gobject",
+        "introspection"
+      ]
+    },
+    {
+      "name": "gautostart",
+      "source": "https://github.com/supercamel/gautostart.git",
+      "source_type": "git",
+      "source_ref": "187d46f40fd5d71180285a6019eee5f22b130eac",
+      "version": "0.1.0+git.187d46f",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection"
+      ],
+      "description": "GObject current-user autostart library for Windows Run registry entries, XDG autostart, login startup, GLib, GTK, SQGI, Vala, and introspection applications.",
+      "meson_options": [
+        "-Dintrospection=enabled",
+        "-Dportal=disabled"
+      ],
+      "tags": [
+        "autostart",
+        "startup",
+        "login",
+        "registry",
+        "xdg",
+        "gobject",
+        "introspection"
+      ]
+    },
+    {
       "name": "libffi",
       "source": "libffi",
       "version_package": "libffi-dev",
@@ -1391,6 +1599,7 @@
       "name": "jpeg",
       "source": "libjpeg-turbo",
       "version_package": "libjpeg-turbo8-dev",
+      "version_suffix": "+ooblerg1",
       "build_system": "cmake",
       "deps": [
         "mingw-w64-runtime"
@@ -1398,6 +1607,9 @@
       "cmake_options": [
         "-DENABLE_STATIC=ON",
         "-DWITH_JPEG8=ON"
+      ],
+      "post_install": [
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libjpeg-8.dll ${DESTDIR}/mingw64/bin/libjpeg-8.2.2.dll"
       ]
     },
     {
@@ -1655,6 +1867,126 @@
       "meson_options": [
         "-Ddocs=false",
         "-Dtests=false"
+      ]
+    },
+    {
+      "name": "libyaml",
+      "source": "libyaml",
+      "version_package": "libyaml-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "pre_configure": [
+        "autoreconf -fi"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--enable-shared",
+        "--disable-static"
+      ],
+      "description": "LibYAML C parser and emitter for YAML metadata files, AppStream metadata parsing, package catalogs, configuration, and serialization.",
+      "license": {
+        "spdx": "MIT"
+      },
+      "tags": [
+        "yaml",
+        "libyaml",
+        "metadata",
+        "parser",
+        "emitter",
+        "appstream"
+      ]
+    },
+    {
+      "name": "libxmlb",
+      "source": "libxmlb",
+      "version_package": "libxmlb-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "xz",
+        "zstd"
+      ],
+      "meson_options": [
+        "-Dgtkdoc=false",
+        "-Dintrospection=true",
+        "-Dtests=false",
+        "-Dstemmer=false",
+        "-Dcli=false",
+        "-Dlzma=enabled",
+        "-Dzstd=enabled"
+      ],
+      "description": "Binary XML library for compiling XML metadata into mmap-friendly blobs used by AppStream, software catalogs, metadata indexes, GLib, and introspection.",
+      "license": {
+        "spdx": "LGPL-2.1-or-later"
+      },
+      "tags": [
+        "xml",
+        "binary-xml",
+        "libxmlb",
+        "metadata",
+        "appstream",
+        "glib",
+        "introspection"
+      ]
+    },
+    {
+      "name": "appstream",
+      "source": "appstream",
+      "version_package": "libappstream-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "curl",
+        "libxml2",
+        "libxmlb",
+        "libyaml",
+        "zstd"
+      ],
+      "patches": [
+        "ports/appstream/patches/0001-appstream-cross-build-library-only.patch"
+      ],
+      "pre_configure": [
+        "perl -0pi -e \"s/'-Werror=([^']+)'/'-Wno-error=\\$1'/g\" meson.build"
+      ],
+      "meson_options": [
+        "-Dgir=true",
+        "-Dvapi=false",
+        "-Dsystemd=false",
+        "-Dstemming=false",
+        "-Dqt=false",
+        "-Dcompose=false",
+        "-Dapt-support=false",
+        "-Dsvg-support=false",
+        "-Dzstd-support=true",
+        "-Ddocs=false",
+        "-Dapidocs=false",
+        "-Dinstall-docs=false"
+      ],
+      "description": "AppStream GObject metadata library for software catalogs, metainfo XML/YAML, release notes, validation data, libadwaita AboutDialog appdata, GLib, and introspection.",
+      "license": {
+        "spdx": "LGPL-2.1-or-later"
+      },
+      "tags": [
+        "appstream",
+        "metadata",
+        "metainfo",
+        "catalog",
+        "software-center",
+        "yaml",
+        "xml",
+        "libxmlb",
+        "glib",
+        "gobject",
+        "introspection",
+        "libadwaita"
       ]
     },
     {
@@ -2200,34 +2532,6 @@
       ],
       "post_install": [
         "rm -f ${DESTDIR}/mingw64/lib/*.la ${DESTDIR}/mingw64/lib/bfd-plugins/*.la"
-      ]
-    },
-    {
-      "name": "mingw-gcc",
-      "source": "gcc-13",
-      "version_package": "gcc-mingw-w64-x86-64",
-      "build_system": "custom",
-      "deps": [
-        "mingw-w64-runtime",
-        "mingw-binutils",
-        "gmp",
-        "mpfr",
-        "mpc",
-        "isl",
-        "zlib"
-      ],
-      "pre_configure": [
-        "test -f gcc-13.3.0/configure || tar -xf gcc-13.3.0.tar.xz"
-      ],
-      "commands": [
-        "gcc_src=$(find ${ROOT}/out/sources/mingw-gcc -maxdepth 3 -type f -name configure -path '*/gcc*/configure' -printf '%h\\n' | head -n1); test -n \"$gcc_src\"",
-        "mkdir -p ${ROOT}/out/build/mingw-gcc",
-        "gcc_src=$(find ${ROOT}/out/sources/mingw-gcc -maxdepth 3 -type f -name configure -path '*/gcc*/configure' -printf '%h\\n' | head -n1); cd ${ROOT}/out/build/mingw-gcc && \"$gcc_src/configure\" --host=x86_64-w64-mingw32 --build=${BUILD_TRIPLET} --target=x86_64-w64-mingw32 --prefix=/mingw64 --with-sysroot=/mingw64 --with-build-sysroot=${ROOT}/out/sysroot --with-native-system-header-dir=/mingw64/include --with-gmp=${ROOT}/out/sysroot/mingw64 --with-mpfr=${ROOT}/out/sysroot/mingw64 --with-mpc=${ROOT}/out/sysroot/mingw64 --with-isl=${ROOT}/out/sysroot/mingw64 --with-gnu-as --with-gnu-ld --disable-bootstrap --disable-multilib --disable-nls --disable-werror --disable-libstdcxx-pch --enable-languages=c,c++ --enable-threads=win32 --with-system-zlib",
-        "make -C ${ROOT}/out/build/mingw-gcc -j${JOBS} all-gcc",
-        "make -C ${ROOT}/out/build/mingw-gcc DESTDIR=${DESTDIR} install-gcc"
-      ],
-      "post_install": [
-        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
       ]
     }
   ]

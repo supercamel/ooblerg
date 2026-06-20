@@ -1,6 +1,7 @@
 {
   "name": "Ooblerg Package Manager",
   "app_id": "dev.ooblerg.pkgmanager",
+  "icon": "assets/icons/dev.ooblerg.pkgmanager.png",
   "desktop_terminal": false,
   "desktop_categories": [
     "Development",
@@ -11,9 +12,23 @@
   "resources": [
     "assets"
   ],
+  "files": [
+    {
+      "path": "assets/icons/hicolor/index.theme",
+      "dest": "usr/share/icons/hicolor/index.theme"
+    },
+    {
+      "path": "assets/icons/dev.ooblerg.pkgmanager.png",
+      "dest": "usr/share/icons/hicolor/1024x1024/apps/dev.ooblerg.pkgmanager.png"
+    },
+    {
+      "path": "assets/icons/ooblerg-icon.png",
+      "dest": "usr/share/icons/hicolor/1024x1024/apps/ooblerg-icon.png"
+    }
+  ],
   "sqgi_source": {
     "repo": "https://github.com/supercamel/sqgi.git",
-    "ref": "3a561e5bc4429283c39380898133f747cc26206f"
+    "ref": "27b9f6a299340e90ed428ba33d6a8f72d116e621"
   },
   "linux": {
     "arches": [
@@ -47,8 +62,25 @@
     "nsis_options": {
       "icon": "assets/icons/ooblerg-icon.ico"
     },
+    "files": [
+      {
+        "path": "assets/icons/hicolor/index.theme",
+        "dest": "share/icons/hicolor/index.theme"
+      },
+      {
+        "path": "assets/icons/dev.ooblerg.pkgmanager.png",
+        "dest": "share/icons/hicolor/1024x1024/apps/dev.ooblerg.pkgmanager.png"
+      },
+      {
+        "path": "assets/icons/ooblerg-icon.png",
+        "dest": "share/icons/hicolor/1024x1024/apps/ooblerg-icon.png"
+      }
+    ],
     "packages": [
-      "mingw-w64-x86_64-libsoup3"
+      "mingw-w64-x86_64-libsoup3",
+      "mingw-w64-x86_64-glib-networking",
+      "mingw-w64-x86_64-ca-certificates",
+      "mingw-w64-x86_64-openssl"
     ],
     "native_projects": [
       {

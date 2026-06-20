@@ -1,0 +1,39 @@
+#!/bin/sh
+set -eu
+
+binary="$1"
+root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+build_root="$(dirname -- "$binary")/.."
+
+path_parts=""
+winepath_parts=""
+for dir in \
+  "$(dirname -- "$binary")" \
+  "$build_root" \
+  "$build_root"/* \
+  "$build_root/glib" \
+  "$build_root/gobject" \
+  "$build_root/gmodule" \
+  "$build_root/gthread" \
+  "$build_root/gio" \
+  "$build_root/girepository" \
+  "$root/out/sysroot/mingw64/bin"
+do
+  [ -d "$dir" ] || continue
+  if [ -n "$path_parts" ]; then
+    path_parts="$path_parts:$dir"
+    winepath_parts="$winepath_parts;$dir"
+  else
+    path_parts="$dir"
+    winepath_parts="$dir"
+  fi
+done
+
+export PATH="$path_parts:$PATH"
+if [ -n "${WINEPATH:-}" ]; then
+  export WINEPATH="$winepath_parts;$WINEPATH"
+else
+  export WINEPATH="$winepath_parts"
+fi
+launcher="${OOBLERG_EXE_WRAPPER:-wine}"
+exec $launcher "$@"

@@ -80,6 +80,8 @@ sqgi tools/ooblerg.nut rebuild-sysroot --no-build-shims vala gtk4 libgee libsoup
   build recipes.
 - `tools/ooblerg.nut` fetches Ubuntu sources, cross-compiles, packages staged
   installs, and installs artifacts into the sysroot.
+- `app/README.md` documents the GTK package manager app, including the Windows
+  installer build command: `cd app && sqgipkg --target win-nsis`.
 - `out/sources` stores downloaded/extracted Ubuntu source packages.
 - `out/build` stores build directories.
 - `out/stage` stores per-package installation roots before packaging.

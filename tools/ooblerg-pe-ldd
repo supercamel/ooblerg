@@ -100,10 +100,14 @@ def main():
 
     emitted = set()
     binary = Path(sys.argv[1])
+    if not binary.exists() and binary.suffix == "":
+        exe_binary = binary.with_name(binary.name + ".exe")
+        if exe_binary.exists():
+            binary = exe_binary
     if binary.suffix.lower() == ".dll":
         emit(emitted, binary.name, binary.name)
 
-    for dll in imported_dlls(sys.argv[1]):
+    for dll in imported_dlls(str(binary)):
         emit(emitted, dll, dll)
         alias = alias_for(dll)
         if alias:

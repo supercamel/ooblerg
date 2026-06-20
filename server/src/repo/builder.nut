@@ -98,8 +98,58 @@ class RepositoryBuilder {
         this.write_text(path, sqgi.json.stringify(value, 2) + "\n")
     }
 
+    function assign_package_value(pkg, key, value) {
+        if (key in pkg) pkg[key] = value
+        else pkg[key] <- value
+    }
+
+    function package_value_missing(pkg, key) {
+        if (!(key in pkg)) return true
+        local value = pkg[key]
+        if (typeof value == "string") return value == ""
+        if (typeof value == "array") return value.len() == 0
+        return false
+    }
+
+    function merge_package_tags(pkg, metadata) {
+        if (!("tags" in metadata)) return
+        local out = []
+        local seen = {}
+        if ("tags" in pkg) {
+            foreach (tag in pkg.tags) {
+                if (tag in seen) continue
+                seen[tag] <- true
+                out.append(tag)
+            }
+        }
+        foreach (tag in metadata.tags) {
+            if (tag in seen) continue
+            seen[tag] <- true
+            out.append(tag)
+        }
+        if (out.len() > 0) this.assign_package_value(pkg, "tags", out)
+    }
+
+    function merge_package_metadata(root, data) {
+        local path = this.path_join([root, "manifest", "package-metadata.json"])
+        if (!U.file_exists(path)) return
+        local metadata = sqgi.json.parse(GLib.file_get_contents(path))
+        if (!("packages" in metadata)) return
+        foreach (pkg in data.packages) {
+            if (!(pkg.name in metadata.packages)) continue
+            local item = metadata.packages[pkg.name]
+            foreach (key in ["summary", "description"]) {
+                if ((key in item) && this.package_value_missing(pkg, key)) {
+                    this.assign_package_value(pkg, key, item[key])
+                }
+            }
+            this.merge_package_tags(pkg, item)
+        }
+    }
+
     function load_manifest(root) {
         local data = sqgi.json.parse(GLib.file_get_contents(this.path_join([root, "manifest", "packages.json"])))
+        this.merge_package_metadata(root, data)
         local packages = {}
         foreach (pkg in data.packages) packages[pkg.name] <- pkg
         return { data = data, packages = packages }

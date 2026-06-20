@@ -3,6 +3,10 @@
 /out/
 /build/
 /dist/
+/app/build-windows_*/
+/app/build-windows-*/
+/app/dist-windows_*/
+/app/dist-windows-*/
 
 # Python/editor noise.
 __pycache__/

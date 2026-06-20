@@ -1,0 +1,1068 @@
+{
+  "schema": 1,
+  "packages": {
+    "mingw-w64-runtime": {
+      "description": "MinGW-w64 Windows runtime headers, CRT, import libraries, and GCC runtime DLLs for building x86_64 Windows software.",
+      "tags": [
+        "windows",
+        "mingw",
+        "runtime",
+        "crt",
+        "headers",
+        "toolchain"
+      ]
+    },
+    "native-sdk": {
+      "description": "Windows-native build SDK meta-package with pkgconf, Ninja, Make, CMake, Python, Meson, Git, and GCC.",
+      "tags": [
+        "sdk",
+        "compiler",
+        "build-tools",
+        "cmake",
+        "meson",
+        "gcc"
+      ]
+    },
+    "pkgconf": {
+      "description": "pkgconf and pkg-config compatible metadata resolver for C and C++ library compile and link flags.",
+      "tags": [
+        "pkg-config",
+        "pkgconf",
+        "build",
+        "c",
+        "c++",
+        "metadata"
+      ]
+    },
+    "ninja": {
+      "description": "Ninja fast low-level build executor used by Meson, CMake, and native Windows build workflows.",
+      "tags": [
+        "build",
+        "ninja",
+        "meson",
+        "cmake",
+        "compiler"
+      ]
+    },
+    "cmake": {
+      "description": "CMake cross-platform build system generator for C, C++, Ninja, Make, and Visual Studio style projects.",
+      "tags": [
+        "build",
+        "cmake",
+        "c",
+        "c++",
+        "ninja",
+        "make"
+      ]
+    },
+    "python": {
+      "description": "Embeddable Python runtime for Windows build scripts, Meson, tooling, automation, and package helpers.",
+      "tags": [
+        "python",
+        "scripting",
+        "automation",
+        "meson",
+        "build"
+      ]
+    },
+    "meson": {
+      "description": "Meson build system packaged for Windows-native builds with Ninja, Python, C, C++, GTK, and GNOME projects.",
+      "tags": [
+        "build",
+        "meson",
+        "ninja",
+        "python",
+        "gnome",
+        "gtk"
+      ]
+    },
+    "busybox-w32": {
+      "description": "BusyBox for Windows providing small Unix-like shell utilities such as sh, bash, cp, rm, sed, grep, and tar.",
+      "tags": [
+        "shell",
+        "unix",
+        "busybox",
+        "bash",
+        "coreutils",
+        "tools"
+      ]
+    },
+    "git": {
+      "description": "Git for Windows command line client for clone, fetch, checkout, commit, push, pull, and source control workflows.",
+      "tags": [
+        "git",
+        "source-control",
+        "github",
+        "clone",
+        "version-control"
+      ]
+    },
+    "make": {
+      "description": "GNU Make for Windows-native builds using Makefiles, configure scripts, Autotools, and compiler recipes.",
+      "tags": [
+        "build",
+        "make",
+        "gnumake",
+        "makefile",
+        "autotools"
+      ]
+    },
+    "binutils": {
+      "description": "GNU Binutils assembler, linker, archive, objdump, nm, strip, and binary utilities for Windows targets.",
+      "tags": [
+        "linker",
+        "assembler",
+        "ld",
+        "as",
+        "objdump",
+        "toolchain"
+      ]
+    },
+    "gmp": {
+      "description": "GNU Multiple Precision arithmetic library for big integers, rational numbers, compiler math, and cryptography.",
+      "tags": [
+        "math",
+        "bignum",
+        "integer",
+        "arithmetic",
+        "gcc"
+      ]
+    },
+    "mpfr": {
+      "description": "MPFR multiple-precision floating-point math library with correct rounding for GCC and numeric software.",
+      "tags": [
+        "math",
+        "floating-point",
+        "precision",
+        "mpfr",
+        "gcc"
+      ]
+    },
+    "mpc": {
+      "description": "MPC multiple-precision complex number library used by GCC and advanced numeric computation packages.",
+      "tags": [
+        "math",
+        "complex",
+        "precision",
+        "mpc",
+        "gcc"
+      ]
+    },
+    "isl": {
+      "description": "Integer Set Library for polyhedral optimization, loop analysis, compiler optimization, and GCC graph scheduling.",
+      "tags": [
+        "compiler",
+        "optimization",
+        "polyhedral",
+        "integer",
+        "gcc"
+      ]
+    },
+    "zstd": {
+      "description": "Zstandard compression library for fast zstd compression, decompression, archives, and data storage.",
+      "tags": [
+        "compression",
+        "zstd",
+        "archive",
+        "decompression",
+        "storage"
+      ]
+    },
+    "gcc": {
+      "description": "GNU C and C++ compiler toolchain for Windows x86_64 with gcc, g++, libstdc++, headers, and runtime support.",
+      "tags": [
+        "compiler",
+        "gcc",
+        "g++",
+        "c",
+        "c++",
+        "toolchain"
+      ]
+    },
+    "vala": {
+      "description": "Vala compiler and libraries for building GObject, GLib, GTK, GIO, and introspection-friendly applications.",
+      "tags": [
+        "vala",
+        "valac",
+        "gobject",
+        "glib",
+        "gtk",
+        "compiler"
+      ]
+    },
+    "gtk4": {
+      "description": "GTK 4 graphical UI toolkit for Windows with widgets, GDK, GLib, GObject Introspection, Cairo, Pango, and GSK.",
+      "tags": [
+        "gui",
+        "gtk",
+        "gtk4",
+        "widgets",
+        "gobject",
+        "introspection"
+      ]
+    },
+    "libgee": {
+      "description": "Libgee GObject collection library with lists, maps, sets, iterators, Vala support, and introspection data.",
+      "tags": [
+        "collections",
+        "gobject",
+        "vala",
+        "glib",
+        "introspection"
+      ]
+    },
+    "granite-7": {
+      "description": "Granite 7 GTK4 widget and application framework library from elementary OS with dialogs, settings widgets, overlays, toasts, date and time pickers, GLib, GObject, libgee, Vala, SQGI, and GObject Introspection support.",
+      "tags": [
+        "granite",
+        "granite7",
+        "elementary",
+        "gtk4",
+        "widgets",
+        "dialog",
+        "settings",
+        "toast",
+        "vala",
+        "gobject",
+        "sqgi"
+      ]
+    },
+    "libsoup3": {
+      "description": "libsoup 3 HTTP client and server library for GLib and GIO with HTTP, HTTPS, cookies, proxies, brotli, SQLite, and HTTP/2.",
+      "tags": [
+        "http",
+        "https",
+        "network",
+        "glib",
+        "gio",
+        "cookies",
+        "http2",
+        "sqlite"
+      ]
+    },
+    "gstreamer": {
+      "description": "GStreamer multimedia framework core for audio, video, streaming, pipelines, elements, pads, plugins, and introspection.",
+      "tags": [
+        "multimedia",
+        "audio",
+        "video",
+        "streaming",
+        "pipeline",
+        "plugins"
+      ]
+    },
+    "gst-plugins-base": {
+      "description": "GStreamer base plugins for audio, video, playback, typefinding, appsrc/appsink, raw parsing, Pango text, TCP, and test sources.",
+      "tags": [
+        "gstreamer",
+        "audio",
+        "video",
+        "playback",
+        "appsrc",
+        "appsink",
+        "pango"
+      ]
+    },
+    "gst-plugins-good": {
+      "description": "GStreamer good plugins for common media formats and protocols including JPEG, PNG, Matroska, MP4, AVI, FLV, RTP, RTSP, UDP, Soup, and WAV.",
+      "tags": [
+        "gstreamer",
+        "codecs",
+        "rtp",
+        "rtsp",
+        "udp",
+        "jpeg",
+        "png",
+        "matroska"
+      ]
+    },
+    "directxmath": {
+      "description": "DirectXMath header-only SIMD vector, matrix, quaternion, and graphics math library for Direct3D and Windows games.",
+      "tags": [
+        "directx",
+        "math",
+        "simd",
+        "matrix",
+        "vector",
+        "games"
+      ]
+    },
+    "gst-plugins-bad": {
+      "description": "GStreamer bad plugins with extra media features including Direct3D 11, WASAPI, WebP, MPEG-TS, MXF, AIFF, video filters, screen capture, and Windows sinks.",
+      "tags": [
+        "gstreamer",
+        "d3d11",
+        "wasapi",
+        "webp",
+        "mpeg",
+        "mxf",
+        "screen-capture"
+      ]
+    },
+    "gst-plugins-ugly": {
+      "description": "GStreamer ugly plugins for additional demuxers and decoders including ASF, DVD LPCM, DVD subtitles, and RealMedia.",
+      "tags": [
+        "gstreamer",
+        "codec",
+        "asf",
+        "dvd",
+        "subtitles",
+        "realmedia"
+      ]
+    },
+    "gdal": {
+      "description": "GDAL geospatial raster and vector GIS library with OGR, SQLite, GeoPackage, RasterLite, GeoTIFF, PNG, JPEG, TIFF, NITF, GML, GPX, CSV, and PROJ coordinate transforms.",
+      "tags": [
+        "gis",
+        "geospatial",
+        "gdal",
+        "ogr",
+        "sqlite",
+        "geopackage",
+        "geotiff",
+        "proj"
+      ]
+    },
+    "webkitgtk": {
+      "description": "WebKitGTK browser engine for GTK applications with HTML, CSS, JavaScriptCore, DOM, web views, HTTP, and rendering support.",
+      "tags": [
+        "webkit",
+        "browser",
+        "html",
+        "css",
+        "javascript",
+        "gtk",
+        "webview"
+      ]
+    },
+    "icu": {
+      "description": "ICU Unicode and internationalization library for collation, normalization, locales, calendars, character sets, and text processing.",
+      "tags": [
+        "unicode",
+        "i18n",
+        "locale",
+        "collation",
+        "normalization",
+        "text"
+      ]
+    },
+    "libxml2": {
+      "description": "libxml2 XML parser library for XML, HTML-ish parsing, XPath, schemas, catalogs, and structured document processing.",
+      "tags": [
+        "xml",
+        "parser",
+        "xpath",
+        "schema",
+        "html",
+        "documents"
+      ]
+    },
+    "libgpg-error": {
+      "description": "Libgpg-error shared error code library used by GnuPG, libgcrypt, crypto, TLS, and security packages.",
+      "tags": [
+        "gnupg",
+        "crypto",
+        "errors",
+        "security",
+        "libgcrypt"
+      ]
+    },
+    "libgcrypt": {
+      "description": "Libgcrypt cryptography library with symmetric ciphers, hashes, MACs, public-key primitives, random numbers, and GnuPG support.",
+      "tags": [
+        "crypto",
+        "hash",
+        "cipher",
+        "security",
+        "gnupg",
+        "random"
+      ]
+    },
+    "libtasn1": {
+      "description": "libtasn1 ASN.1 and DER parser library for X.509, certificates, TLS, PKI, and cryptographic data structures.",
+      "tags": [
+        "asn1",
+        "der",
+        "certificate",
+        "tls",
+        "x509",
+        "crypto"
+      ]
+    },
+    "webp": {
+      "description": "WebP image codec tools and libraries for lossy, lossless, alpha, animation, JPEG/PNG conversion, and web images.",
+      "tags": [
+        "image",
+        "webp",
+        "codec",
+        "lossless",
+        "animation",
+        "graphics"
+      ]
+    },
+    "glib": {
+      "description": "GLib, GObject, GIO, GModule, threading, event loop, signals, properties, collections, and Windows utility runtime for GTK apps.",
+      "tags": [
+        "glib",
+        "gobject",
+        "gio",
+        "signals",
+        "main-loop",
+        "gtk"
+      ]
+    },
+    "libgirepository-1.0": {
+      "description": "GObject Introspection repository runtime library for loading typelibs and dynamic language bindings such as SQGI, Python, and Vala tools.",
+      "tags": [
+        "gobject-introspection",
+        "typelib",
+        "gir",
+        "bindings",
+        "sqgi",
+        "runtime"
+      ]
+    },
+    "gobject-introspection": {
+      "description": "GObject Introspection build support with scanner metadata, gdump helpers, GIR files, typelibs, and language binding infrastructure.",
+      "tags": [
+        "gobject-introspection",
+        "gir",
+        "typelib",
+        "bindings",
+        "scanner",
+        "gnome"
+      ]
+    },
+    "glib-introspection": {
+      "description": "GLib and GObject GIR and typelib data for dynamic imports of GLib, GObject, GIO, and GModule from SQGI and other bindings.",
+      "tags": [
+        "glib",
+        "gobject",
+        "gio",
+        "gir",
+        "typelib",
+        "sqgi"
+      ]
+    },
+    "win32-introspection": {
+      "description": "Win32 GIR and typelib metadata for Windows API constants and types used by GObject Introspection imports.",
+      "tags": [
+        "win32",
+        "windows",
+        "gir",
+        "typelib",
+        "introspection"
+      ]
+    },
+    "sqgi": {
+      "description": "SQGI Squirrel interpreter with GObject Introspection imports for GLib, GTK, GIO, GSerial, and dynamic native bindings.",
+      "tags": [
+        "squirrel",
+        "sqgi",
+        "gobject-introspection",
+        "gtk",
+        "glib",
+        "scripting"
+      ]
+    },
+    "gserial": {
+      "description": "GSerial GObject serial port library with GLib, GTK, SQGI, Vala, COM port, UART, RS-232, and introspection support.",
+      "tags": [
+        "serial",
+        "com",
+        "uart",
+        "rs232",
+        "gobject",
+        "sqgi",
+        "vala"
+      ]
+    },
+    "gautogui": {
+      "description": "GAutogui GObject GUI automation and input monitoring library for mouse movement, clicks, scroll, keyboard events, text typing, global hooks, Win32 SendInput, GLib, GTK, SQGI, Vala, and introspection bindings.",
+      "tags": [
+        "automation",
+        "autogui",
+        "input",
+        "mouse",
+        "keyboard",
+        "click",
+        "sendinput",
+        "hooks",
+        "gobject",
+        "sqgi",
+        "vala"
+      ]
+    },
+    "gjoystick": {
+      "description": "GJoystick GObject joystick and gamepad input library for XInput controllers, WinMM legacy joysticks, buttons, axes, GLib, GTK, SQGI, Vala, and introspection bindings.",
+      "tags": [
+        "joystick",
+        "gamepad",
+        "controller",
+        "xinput",
+        "winmm",
+        "buttons",
+        "axes",
+        "gobject",
+        "sqgi",
+        "vala"
+      ]
+    },
+    "gautostart": {
+      "description": "GAutostart GObject current-user autostart library for Windows Run registry entries, login startup, XDG autostart desktop files, GLib, GTK, SQGI, Vala, and introspection bindings.",
+      "tags": [
+        "autostart",
+        "startup",
+        "login",
+        "windows",
+        "registry",
+        "run-key",
+        "xdg",
+        "gobject",
+        "sqgi",
+        "vala"
+      ]
+    },
+    "libffi": {
+      "description": "libffi foreign function interface library for calling native C functions dynamically from runtimes, bindings, JITs, and interpreters.",
+      "tags": [
+        "ffi",
+        "bindings",
+        "native",
+        "runtime",
+        "introspection"
+      ]
+    },
+    "pcre2": {
+      "description": "PCRE2 Perl-compatible regular expression library for pattern matching, regex, UTF, Unicode, and text parsing.",
+      "tags": [
+        "regex",
+        "regexp",
+        "pcre",
+        "unicode",
+        "text",
+        "parser"
+      ]
+    },
+    "zlib": {
+      "description": "zlib compression library for DEFLATE, gzip-compatible streams, PNG, ZIP, HTTP compression, and general data compression.",
+      "tags": [
+        "compression",
+        "zlib",
+        "deflate",
+        "gzip",
+        "png",
+        "zip"
+      ]
+    },
+    "libpng": {
+      "description": "libpng PNG image library for reading and writing PNG graphics with zlib compression, alpha, palette, and metadata.",
+      "tags": [
+        "image",
+        "png",
+        "graphics",
+        "codec",
+        "alpha",
+        "zlib"
+      ]
+    },
+    "brotli": {
+      "description": "Brotli compression library for HTTP content encoding, web assets, fonts, WOFF2-style compression, and data compression.",
+      "tags": [
+        "compression",
+        "brotli",
+        "http",
+        "web",
+        "fonts"
+      ]
+    },
+    "nghttp2": {
+      "description": "nghttp2 HTTP/2 library for HTTP/2 framing, HPACK header compression, network clients, and curl/libsoup support.",
+      "tags": [
+        "http2",
+        "hpack",
+        "network",
+        "curl",
+        "libsoup"
+      ]
+    },
+    "sqlite": {
+      "description": "SQLite embedded SQL database library with sqlite3, RTree spatial indexes, column metadata, local storage, and application databases.",
+      "tags": [
+        "database",
+        "sql",
+        "sqlite",
+        "sqlite3",
+        "rtree",
+        "storage"
+      ]
+    },
+    "libpsl": {
+      "description": "Public Suffix List library for cookie domains, registrable domains, TLD rules, HTTP clients, curl, and libsoup.",
+      "tags": [
+        "public-suffix",
+        "cookies",
+        "domains",
+        "http",
+        "curl",
+        "libsoup"
+      ]
+    },
+    "proj": {
+      "description": "PROJ cartographic projection and coordinate transform library for GIS, geospatial data, CRS, EPSG, SQLite, and GeoTIFF workflows.",
+      "tags": [
+        "gis",
+        "projection",
+        "coordinate",
+        "crs",
+        "epsg",
+        "sqlite",
+        "geotiff"
+      ]
+    },
+    "jpeg": {
+      "description": "libjpeg-turbo JPEG image codec library for fast JPEG encode, decode, JFIF, EXIF, thumbnails, and graphics pipelines.",
+      "tags": [
+        "image",
+        "jpeg",
+        "jpg",
+        "codec",
+        "graphics",
+        "photo"
+      ]
+    },
+    "tiff": {
+      "description": "libtiff TIFF and GeoTIFF image library for raster images, tags, metadata, JPEG/zlib compression, and GIS formats.",
+      "tags": [
+        "image",
+        "tiff",
+        "geotiff",
+        "raster",
+        "metadata",
+        "gis"
+      ]
+    },
+    "freetype": {
+      "description": "FreeType font rendering library for TrueType, OpenType, glyph rasterization, text shaping inputs, and UI typography.",
+      "tags": [
+        "fonts",
+        "truetype",
+        "opentype",
+        "glyphs",
+        "text",
+        "typography"
+      ]
+    },
+    "fontconfig": {
+      "description": "Fontconfig font discovery, matching, fallback, cache, family selection, and configuration library for text rendering.",
+      "tags": [
+        "fonts",
+        "fontconfig",
+        "fallback",
+        "cache",
+        "text",
+        "typography"
+      ]
+    },
+    "pixman": {
+      "description": "Pixman pixel manipulation library for image compositing, raster operations, Cairo rendering, alpha blending, and 2D graphics.",
+      "tags": [
+        "graphics",
+        "pixels",
+        "compositing",
+        "cairo",
+        "raster",
+        "2d"
+      ]
+    },
+    "cairo": {
+      "description": "Cairo 2D vector graphics library for drawing, paths, text, PNG surfaces, PDF-style rendering, and GTK graphics.",
+      "tags": [
+        "graphics",
+        "cairo",
+        "2d",
+        "vector",
+        "drawing",
+        "gtk"
+      ]
+    },
+    "graphene": {
+      "description": "Graphene geometry math library for vectors, matrices, points, rectangles, quaternions, GObject Introspection, and GTK scene graphs.",
+      "tags": [
+        "math",
+        "geometry",
+        "matrix",
+        "vector",
+        "gtk",
+        "introspection"
+      ]
+    },
+    "harfbuzz": {
+      "description": "HarfBuzz text shaping engine for OpenType, Unicode, complex scripts, glyph layout, font shaping, GTK, Pango, and ICU.",
+      "tags": [
+        "text",
+        "fonts",
+        "shaping",
+        "opentype",
+        "unicode",
+        "pango",
+        "gtk"
+      ]
+    },
+    "pango": {
+      "description": "Pango text layout and internationalized typography library for GTK with HarfBuzz, FreeType, Fontconfig, Cairo, BiDi, and markup.",
+      "tags": [
+        "text",
+        "layout",
+        "fonts",
+        "gtk",
+        "harfbuzz",
+        "cairo",
+        "bidi"
+      ]
+    },
+    "gdk-pixbuf": {
+      "description": "GDK Pixbuf image loading and pixel buffer library for GTK with PNG, JPEG, icons, thumbnails, and GObject Introspection.",
+      "tags": [
+        "image",
+        "gtk",
+        "pixbuf",
+        "icons",
+        "png",
+        "jpeg",
+        "introspection"
+      ]
+    },
+    "libepoxy": {
+      "description": "libepoxy OpenGL, EGL, WGL, and GL extension loader library for GTK, graphics contexts, and GPU rendering.",
+      "tags": [
+        "opengl",
+        "egl",
+        "wgl",
+        "graphics",
+        "gtk",
+        "gpu"
+      ]
+    },
+    "gettext": {
+      "description": "GNU gettext internationalization runtime for translations, message catalogs, localization, ngettext, and libintl.",
+      "tags": [
+        "i18n",
+        "translation",
+        "localization",
+        "gettext",
+        "libintl",
+        "locale"
+      ]
+    },
+    "expat": {
+      "description": "Expat streaming XML parser library for SAX-style parsing, configuration files, metadata, SVG-ish XML, and structured data.",
+      "tags": [
+        "xml",
+        "parser",
+        "sax",
+        "metadata",
+        "documents"
+      ]
+    },
+    "fribidi": {
+      "description": "FriBidi Unicode bidirectional text library for right-to-left scripts, Arabic, Hebrew, text layout, and Pango.",
+      "tags": [
+        "unicode",
+        "bidi",
+        "rtl",
+        "arabic",
+        "hebrew",
+        "pango"
+      ]
+    },
+    "openssl": {
+      "description": "OpenSSL TLS and cryptography library for HTTPS, SSL, certificates, X.509, hashes, ciphers, random numbers, and secure networking.",
+      "tags": [
+        "tls",
+        "ssl",
+        "https",
+        "crypto",
+        "certificate",
+        "x509"
+      ]
+    },
+    "curl": {
+      "description": "libcurl URL transfer library for HTTP, HTTPS, TLS, HTTP/2, downloads, REST APIs, proxies, cookies, brotli, zstd, and OpenSSL.",
+      "tags": [
+        "http",
+        "https",
+        "curl",
+        "download",
+        "rest",
+        "tls",
+        "http2"
+      ]
+    },
+    "minizip": {
+      "description": "MiniZip ZIP archive library for zip files, unzip, compression, packaging, installers, and zlib-based archives.",
+      "tags": [
+        "zip",
+        "archive",
+        "compression",
+        "unzip",
+        "zlib",
+        "package"
+      ]
+    },
+    "xz": {
+      "description": "liblzma XZ compression library for .xz, LZMA streams, archive compression, package data, and decompression.",
+      "tags": [
+        "compression",
+        "xz",
+        "lzma",
+        "archive",
+        "decompression"
+      ]
+    },
+    "bzip2": {
+      "description": "bzip2 compression library and tool for .bz2 archives, block compression, decompression, and source packages.",
+      "tags": [
+        "compression",
+        "bzip2",
+        "bz2",
+        "archive",
+        "decompression"
+      ]
+    },
+    "libwebp": {
+      "description": "libwebp development library for WebP image encoding, decoding, alpha, animation, lossless compression, and graphics apps.",
+      "tags": [
+        "image",
+        "webp",
+        "codec",
+        "graphics",
+        "animation",
+        "lossless"
+      ]
+    },
+    "opus": {
+      "description": "Opus audio codec library for speech, music, VoIP, streaming, low-latency audio, and game voice chat.",
+      "tags": [
+        "audio",
+        "opus",
+        "codec",
+        "voip",
+        "streaming",
+        "speech"
+      ]
+    },
+    "libsndfile": {
+      "description": "libsndfile audio file library for WAV, AIFF, AU, raw audio, sound metadata, Opus support, and SQLite-backed format data.",
+      "tags": [
+        "audio",
+        "wav",
+        "aiff",
+        "sound",
+        "opus",
+        "sqlite"
+      ]
+    },
+    "eigen3": {
+      "description": "Eigen3 header-only C++ template library for linear algebra, matrices, vectors, geometry, transforms, and numerical algorithms.",
+      "tags": [
+        "c++",
+        "math",
+        "linear-algebra",
+        "matrix",
+        "vector",
+        "geometry"
+      ]
+    },
+    "geos": {
+      "description": "GEOS computational geometry library for GIS, spatial predicates, overlays, buffers, topology, WKT/WKB, and shapely-style operations.",
+      "tags": [
+        "gis",
+        "geometry",
+        "spatial",
+        "topology",
+        "wkt",
+        "wkb"
+      ]
+    },
+    "pugixml": {
+      "description": "pugixml fast lightweight C++ XML DOM parser and writer for configuration files, documents, XPath, and structured data.",
+      "tags": [
+        "xml",
+        "c++",
+        "dom",
+        "parser",
+        "xpath",
+        "config"
+      ]
+    },
+    "rapidjson": {
+      "description": "RapidJSON header-only C++ JSON parser and writer for DOM, SAX, serialization, configuration, and web API data.",
+      "tags": [
+        "json",
+        "c++",
+        "parser",
+        "serialization",
+        "dom",
+        "sax"
+      ]
+    },
+    "openblas": {
+      "description": "OpenBLAS CBLAS linear algebra library for BLAS routines, matrices, vectors, numeric computing, machine learning, and scientific code.",
+      "tags": [
+        "math",
+        "blas",
+        "linear-algebra",
+        "matrix",
+        "numeric",
+        "science"
+      ]
+    },
+    "stb": {
+      "description": "stb single-file public domain C headers for image loading, image writing, TrueType fonts, Vorbis audio, rectangles, and utilities.",
+      "tags": [
+        "headers",
+        "image",
+        "stb",
+        "fonts",
+        "audio",
+        "single-file"
+      ]
+    },
+    "utfcpp": {
+      "description": "utfcpp header-only C++ UTF-8 library for Unicode conversion, validation, iterators, code points, and text handling.",
+      "tags": [
+        "unicode",
+        "utf8",
+        "c++",
+        "text",
+        "conversion",
+        "validation"
+      ]
+    },
+    "assimp": {
+      "description": "Assimp 3D asset import library for meshes, scenes, materials, animations, models, OBJ, FBX, glTF, Collada, STL, and game engines.",
+      "tags": [
+        "3d",
+        "models",
+        "mesh",
+        "animation",
+        "gltf",
+        "obj",
+        "fbx"
+      ]
+    },
+    "openal-soft": {
+      "description": "OpenAL Soft cross-platform 3D audio library for positional sound, game audio, spatial effects, and low-level audio playback.",
+      "tags": [
+        "audio",
+        "openal",
+        "3d-audio",
+        "games",
+        "sound",
+        "spatial"
+      ]
+    },
+    "SDL2": {
+      "description": "SDL2 cross-platform game and multimedia library for windows, events, input, keyboard, mouse, joystick, audio, rendering, and OpenGL.",
+      "tags": [
+        "sdl",
+        "games",
+        "input",
+        "window",
+        "audio",
+        "opengl",
+        "multimedia"
+      ]
+    },
+    "SDL2_image": {
+      "description": "SDL2_image image loading extension for SDL2 with PNG, JPEG, TIFF, WebP, textures, sprites, and game assets.",
+      "tags": [
+        "sdl",
+        "image",
+        "png",
+        "jpeg",
+        "webp",
+        "tiff",
+        "games"
+      ]
+    },
+    "SDL2_mixer": {
+      "description": "SDL2_mixer audio mixing extension for SDL2 with WAV playback, channels, music hooks, sound effects, and game audio.",
+      "tags": [
+        "sdl",
+        "audio",
+        "mixer",
+        "wav",
+        "sound-effects",
+        "games"
+      ]
+    },
+    "SDL2_ttf": {
+      "description": "SDL2_ttf TrueType font rendering extension for SDL2 using FreeType and HarfBuzz for text, UI labels, and game typography.",
+      "tags": [
+        "sdl",
+        "fonts",
+        "truetype",
+        "text",
+        "freetype",
+        "harfbuzz"
+      ]
+    },
+    "glfw": {
+      "description": "GLFW window, input, and OpenGL context library for games, graphics tools, keyboard, mouse, monitors, and rendering demos.",
+      "tags": [
+        "opengl",
+        "window",
+        "input",
+        "graphics",
+        "games",
+        "glfw"
+      ]
+    },
+    "box2d": {
+      "description": "Box2D 2D physics engine for games and simulations with rigid bodies, collisions, joints, shapes, and dynamics.",
+      "tags": [
+        "physics",
+        "2d",
+        "games",
+        "collision",
+        "joints",
+        "simulation"
+      ]
+    },
+    "fftw3": {
+      "description": "FFTW3 fast Fourier transform library for FFT, signal processing, audio analysis, spectral transforms, and scientific computing.",
+      "tags": [
+        "math",
+        "fft",
+        "signal-processing",
+        "audio",
+        "science",
+        "numeric"
+      ]
+    },
+    "gsl": {
+      "description": "GNU Scientific Library for numerical computing with statistics, random numbers, linear algebra, integration, interpolation, FFT, and special functions.",
+      "tags": [
+        "math",
+        "science",
+        "statistics",
+        "random",
+        "linear-algebra",
+        "fft"
+      ]
+    },
+    "mingw-binutils": {
+      "description": "Ubuntu MinGW binutils package with Windows-targeted assembler, linker, objdump, strip, ar, ranlib, and import library tools.",
+      "tags": [
+        "mingw",
+        "binutils",
+        "linker",
+        "assembler",
+        "toolchain",
+        "windows"
+      ]
+    }
+  }
+}

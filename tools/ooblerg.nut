@@ -505,6 +505,10 @@ function source_dir(pkg) {
     return dirs.len() > 0 ? dirs.top() : null
 }
 
+function is_git_source(pkg) {
+    return ("source_type" in pkg && pkg.source_type == "git")
+}
+
 function dependency_closure(packages, roots) {
     local seen = {}
     local ordered = []
@@ -754,7 +758,6 @@ function command_plan(args) {
 function command_fetch(args) {
     local loaded = load_manifest()
     mkdirs()
-    if (!apt_has_source_uris()) throw "no deb-src URIs configured; Squirrel fetch currently uses apt-get source"
     local roots = command_positionals_default(args)
     local names = has_flag(args, "--deps") ? dependency_closure(loaded.packages, roots) : roots
     foreach (name in names) {
@@ -764,6 +767,21 @@ function command_fetch(args) {
             print(name + ": no source package to fetch\n")
             continue
         }
+        if (is_git_source(pkg)) {
+            local ref = "source_ref" in pkg ? pkg.source_ref : "HEAD"
+            local dest = path_join([this.out, "sources", name])
+            local repo = path_join([dest, "repo"])
+            mkdir_p(dest)
+            if (!is_dir(path_join([repo, ".git"]))) {
+                shell("rm -rf " + shell_quote(repo) + " && git clone " + shell_quote(pkg.source) + " " + shell_quote(repo))
+            } else {
+                shell("git -C " + shell_quote(repo) + " fetch --tags origin")
+            }
+            shell("git -C " + shell_quote(repo) + " checkout -f " + shell_quote(ref))
+            print(name + ": checked out " + ref + "\n")
+            continue
+        }
+        if (!apt_has_source_uris()) throw "no deb-src URIs configured; Squirrel fetch currently uses apt-get source"
         local source_from = ("source_from" in pkg) ? pkg.source_from : null
         if (source_from != null && is_dir(path_join([this.out, "sources", source_from]))) {
             print(name + ": using source tree from " + source_from + "\n")

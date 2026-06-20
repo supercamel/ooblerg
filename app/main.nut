@@ -1,4 +1,40 @@
 local GLib = import("GLib")
+local Gio = import("Gio")
+
+function setenv_if_missing(name, value) {
+    local existing = GLib.getenv(name)
+    if (existing == null || existing == "") GLib.setenv(name, value, true)
+}
+
+function first_existing_bundle_path(appdir, rels) {
+    foreach (rel in rels) {
+        local parts = [appdir]
+        foreach (part in rel) parts.push(part)
+        local path = GLib.build_filenamev(parts)
+        if (Gio.File.new_for_path(path).query_exists(null)) return path
+    }
+    return null
+}
+
+function configure_bundle_tls() {
+    local appdir = GLib.getenv("SQGI_APPDIR")
+    if (appdir == null || appdir == "") return
+
+    local cert_file = first_existing_bundle_path(appdir, [
+        ["etc", "ssl", "certs", "ca-bundle.crt"],
+        ["etc", "ssl", "cert.pem"],
+        ["etc", "pki", "ca-trust", "extracted", "pem", "tls-ca-bundle.pem"],
+    ])
+    if (cert_file != null) {
+        setenv_if_missing("SSL_CERT_FILE", cert_file)
+        setenv_if_missing("CURL_CA_BUNDLE", cert_file)
+    }
+
+    local openssl_conf = first_existing_bundle_path(appdir, [
+        ["etc", "ssl", "openssl.cnf"],
+    ])
+    if (openssl_conf != null) setenv_if_missing("OPENSSL_CONF", openssl_conf)
+}
 
 function arg_value(name, fallback) {
     foreach (a in vargv) {
@@ -26,6 +62,8 @@ if (has_arg("--help") || has_arg("-h")) {
     print_help()
     return 0
 }
+
+configure_bundle_tls()
 
 if (has_arg("--self-test")) {
     import("test/package_tests.nut")

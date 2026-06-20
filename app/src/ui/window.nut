@@ -24,6 +24,8 @@ local State = {
     busy = false,
     status_message = "Ready",
     css_loaded = false,
+    app_icon_name = null,
+    app_icon_installed = false,
     test_exit_code = 0,
 }
 
@@ -99,20 +101,35 @@ function install_css() {
     State.css_loaded = true
 }
 
+function append_icon_search_root(dirs, root) {
+    if (root == null || root == "") return
+    dirs.append(root)
+    dirs.append(GLib.build_filenamev([root, "hicolor"]))
+    dirs.append(GLib.build_filenamev([root, "hicolor", "1024x1024", "apps"]))
+}
+
 function icon_search_dirs() {
     local dirs = []
+    local appdir = GLib.getenv("SQGI_APPDIR")
+    if (appdir != null && appdir != "") {
+        append_icon_search_root(dirs, GLib.build_filenamev([appdir, "share", "icons"]))
+    }
+
     local resources = GLib.getenv("SQGI_APP_RESOURCES")
     if (resources != null && resources != "") {
-        dirs.append(GLib.build_filenamev([resources, "assets", "icons"]))
+        append_icon_search_root(dirs, GLib.build_filenamev([resources, "assets", "icons"]))
     }
 
     local cwd = GLib.get_current_dir()
-    dirs.append(GLib.build_filenamev([cwd, "assets", "icons"]))
-    dirs.append(GLib.build_filenamev([cwd, "app", "assets", "icons"]))
+    append_icon_search_root(dirs, GLib.build_filenamev([cwd, "assets", "icons"]))
+    append_icon_search_root(dirs, GLib.build_filenamev([cwd, "app", "assets", "icons"]))
     return dirs
 }
 
 function install_app_icon(win = null) {
+    State.app_icon_name = null
+    State.app_icon_installed = false
+
     local display = Gdk.Display.get_default()
     if (display == null) return false
 
@@ -121,12 +138,19 @@ function install_app_icon(win = null) {
         if (U.is_directory(dir)) theme.add_search_path(dir)
     }
 
-    local icon_name = Config.APP_ID
-    if (!theme.has_icon(icon_name) && theme.has_icon("ooblerg-icon")) icon_name = "ooblerg-icon"
-    if (!theme.has_icon(icon_name)) return false
+    local icon_name = null
+    foreach (candidate in [Config.APP_ID, "ooblerg-icon"]) {
+        if (theme.has_icon(candidate)) {
+            icon_name = candidate
+            break
+        }
+    }
+    if (icon_name == null) return false
 
     Gtk.Window.set_default_icon_name(icon_name)
     if (win != null) win.set_icon_name(icon_name)
+    State.app_icon_name = icon_name
+    State.app_icon_installed = true
     return true
 }
 
@@ -399,6 +423,11 @@ function rebuild_detail() {
         lines.append("")
         lines.append(pkg.description)
     }
+    local tags = package_tags(pkg)
+    if (tags.len() > 0) {
+        lines.append("")
+        lines.append("Tags: " + U.join(tags, ", "))
+    }
     local deps = Manifest.dependency_names(pkg)
     if (deps.len() > 0) {
         lines.append("")
@@ -412,9 +441,19 @@ function rebuild_detail() {
     update_status_bar()
 }
 
+function package_tags(pkg) {
+    local out = []
+    if (pkg != null && "tags" in pkg) foreach (tag in pkg.tags) out.append(tag)
+    return out
+}
+
 function package_matches(pkg, filter) {
     if (filter == "") return true
-    local hay = (pkg.name + " " + Manifest.package_summary(pkg)).tolower()
+    local parts = [pkg.name, Manifest.package_summary(pkg)]
+    if ("description" in pkg) parts.append(pkg.description)
+    foreach (tag in package_tags(pkg)) parts.append(tag)
+    foreach (dep in Manifest.dependency_names(pkg)) parts.append(dep)
+    local hay = U.join(parts, " ").tolower()
     return hay.find(filter) != null
 }
 
@@ -690,8 +729,9 @@ async function drive_gtk_smoke_test(app, options) {
         check_gui_test(State.index != null, "repository index was not loaded")
         check_gui_test(State.index.packages.len() > 0, "repository index contains no packages")
         check_gui_test(package_list_count() > 0, "package list did not populate")
-        check_gui_test("win" in W && W.win.get_icon_name() == Config.APP_ID,
-            "window icon name was not set to " + Config.APP_ID)
+        check_gui_test(State.app_icon_installed && State.app_icon_name == Config.APP_ID &&
+            ("win" in W) && W.win.get_icon_name() == Config.APP_ID,
+            "window icon name was not resolved and set to " + Config.APP_ID)
         check_gui_test(widget_text("status_counts").find("packages") != null, "status bar package counts did not update")
         check_gui_test(widget_text("status_source").find(source_uri) != null, "status bar source URI did not update")
         check_gui_test(widget_text("path_state").find("PATH") != null, "Windows PATH status did not initialize")

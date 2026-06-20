@@ -162,6 +162,73 @@ function make_fixture_repo(root) {
     return GLib.build_filenamev([repo, "index.json"])
 }
 
+function make_replacement_fixture_repo(root) {
+    local repo = GLib.build_filenamev([root, "repo", "v1"])
+    local stage = GLib.build_filenamev([root, "stage-replacement"])
+    local filename = "runtime-2-x86_64-w64-mingw32.tar.gz"
+    local artifact_rel = "packages/runtime/" + filename
+    local manifest_rel = "packages/runtime/runtime-2-x86_64-w64-mingw32.pkg.json"
+    local artifact = GLib.build_filenamev([repo, "packages", "runtime", filename])
+    local dll_rel = "mingw64/bin/libstdc++-6.dll"
+
+    U.write_text(GLib.build_filenamev([stage, "mingw64", "bin", "libstdc++-6.dll"]), "new\n")
+    GLib.mkdir_with_parents(GLib.path_get_dirname(artifact), 493)
+    run_argv(["tar", "-czf", artifact, "-C", stage, "mingw64"])
+
+    local sha = Cache.sha256_file(artifact)
+    local manifest = {
+        schema = 1,
+        name = "runtime",
+        version = "2",
+        target = "x86_64-w64-mingw32",
+        architecture = "x86_64",
+        kind = "package",
+        summary = "runtime",
+        description = "runtime",
+        artifact = {
+            filename = filename,
+            path = artifact_rel,
+            sha256 = sha,
+            size = 1,
+        },
+        dependencies = [],
+        provides = ["runtime"],
+        conflicts = [],
+        replaces = ["gcc"],
+        files = [
+            { path = dll_rel, kind = "file", size = 4 },
+        ],
+        directories = ["mingw64", "mingw64/bin"],
+        installed_size = 4,
+        tags = [],
+    }
+
+    U.write_json(GLib.build_filenamev([repo, "packages", "runtime", "runtime-2-x86_64-w64-mingw32.pkg.json"]), manifest)
+    U.write_json(GLib.build_filenamev([repo, "index.json"]), {
+        schema = 1,
+        repository = "fixture",
+        target = "x86_64-w64-mingw32",
+        packages = [
+            {
+                name = "runtime",
+                version = "2",
+                kind = "package",
+                summary = "runtime",
+                description = "runtime",
+                manifest = manifest_rel,
+                artifact = artifact_rel,
+                sha256 = sha,
+                dependencies = [],
+                installed_size = 4,
+                size = 1,
+                tags = [],
+            },
+        ],
+    })
+
+    return GLib.build_filenamev([repo, "index.json"])
+}
+
 function use_test_root(root) {
     GLib.setenv("LOCALAPPDATA", GLib.build_filenamev([root, "appdata"]), true)
     GLib.setenv("XDG_DATA_HOME", GLib.build_filenamev([root, "xdg-data"]), true)
@@ -244,6 +311,64 @@ function test_transaction_cleanup_leftovers() {
     assert(Status.installed(status, "runtime"))
 }
 
+function test_transaction_replaces_file_owner() {
+    local root = GLib.build_filenamev([GLib.get_tmp_dir(), "ooblerg-app-test-" + GLib.uuid_string_random()])
+    use_test_root(root)
+
+    local source_uri = make_replacement_fixture_repo(root)
+    local index = Client.load_index(source_uri)
+    local status = Status.empty(source_uri)
+    local dll_rel = "mingw64/bin/libstdc++-6.dll"
+    local installed_file = GLib.build_filenamev([Config.sysroot_path(), "mingw64", "bin", "libstdc++-6.dll"])
+
+    Config.ensure_dirs()
+    U.write_text(installed_file, "old\n")
+    U.write_json(GLib.build_filenamev([Config.package_db_dir(), "gcc.pkg.json"]), {
+        schema = 1,
+        name = "gcc",
+        version = "1",
+        target = "x86_64-w64-mingw32",
+        architecture = "x86_64",
+        kind = "package",
+        summary = "gcc",
+        description = "gcc",
+        artifact = null,
+        dependencies = [],
+        provides = ["gcc"],
+        conflicts = [],
+        replaces = [],
+        files = [
+            { path = dll_rel, kind = "file", size = 4 },
+        ],
+        directories = ["mingw64", "mingw64/bin"],
+        installed_size = 4,
+        tags = [],
+    })
+    status.packages["gcc"] <- {
+        version = "1",
+        kind = "package",
+        manual = true,
+        installed_at = "test",
+        manifest = "var/lib/ooblerg/packages/gcc.pkg.json",
+    }
+
+    local install_plan = Solver.install_plan(index, status, ["runtime"])
+    status = Transaction.apply(index, status, source_uri, install_plan)
+
+    assert(Status.installed(status, "gcc"))
+    assert(Status.installed(status, "runtime"))
+    assert(U.read_text(installed_file) == "new\n")
+
+    local gcc_manifest = U.read_json(GLib.build_filenamev([Config.package_db_dir(), "gcc.pkg.json"]))
+    assert(gcc_manifest.files.len() == 0)
+
+    local remove_plan = Solver.remove_plan(index, status, ["gcc"])
+    status = Transaction.apply(index, status, source_uri, remove_plan)
+    assert(!Status.installed(status, "gcc"))
+    assert(Status.installed(status, "runtime"))
+    assert(U.file_exists(installed_file))
+}
+
 function run_async_test(task) {
     local loop = GLib.MainLoop.new(null, false)
     local failure = null
@@ -292,6 +417,7 @@ test_path_integration_fallback()
 test_transaction_install_remove()
 test_transaction_install_rollback_after_failure()
 test_transaction_cleanup_leftovers()
+test_transaction_replaces_file_owner()
 run_async_test(test_transaction_install_progress())
 
 return true

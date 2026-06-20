@@ -324,6 +324,7 @@ class SysrootTransaction {
     function detect_conflicts(manifests) {
         local owners = this.local_file_owners()
         local incoming = {}
+        local replacements = {}
         foreach (manifest in manifests) {
             this.validate_manifest_paths(manifest)
             foreach (item in manifest.files) {
@@ -332,19 +333,62 @@ class SysrootTransaction {
                 }
                 incoming[item.path] <- manifest.name
                 if (item.path in owners && owners[item.path] != manifest.name) {
-                    throw "file conflict: " + manifest.name + " would overwrite " + item.path +
-                        " owned by " + owners[item.path]
+                    local owner = owners[item.path]
+                    if (!this.manifest_replaces_owner(manifest, owner)) {
+                        throw "file conflict: " + manifest.name + " would overwrite " + item.path +
+                            " owned by " + owner
+                    }
+                    if (!(owner in replacements)) replacements[owner] <- {}
+                    replacements[owner][item.path] <- manifest.name
                 }
                 local disk_path = this.sysroot_path(item.path)
-                if (U.file_exists(disk_path) && (!(item.path in owners) || owners[item.path] != manifest.name)) {
+                local replaced_owner = item.path in owners && owners[item.path] != manifest.name &&
+                    this.manifest_replaces_owner(manifest, owners[item.path])
+                if (U.file_exists(disk_path) && (!(item.path in owners) ||
+                    (owners[item.path] != manifest.name && !replaced_owner))) {
                     throw "refusing to overwrite unmanaged file: " + item.path +
                         " (use Clean Leftovers if this came from a failed install)"
                 }
             }
         }
+        return replacements
     }
 
-    function begin_install_rollback(manifests) {
+    function manifest_replaces_owner(manifest, owner) {
+        if (!("replaces" in manifest)) return false
+        foreach (item in manifest.replaces) {
+            if (typeof item == "string" && item == owner) return true
+            if (item != null && typeof item == "table" && "name" in item && item.name == owner) return true
+        }
+        return false
+    }
+
+    function apply_replacement_transfers(replacements) {
+        foreach (owner in U.sorted_keys(replacements)) {
+            local manifest = this.load_local_manifest(owner, false)
+            if (manifest == null) continue
+            this.validate_manifest_paths(manifest)
+
+            local kept = []
+            local changed = 0
+            foreach (item in manifest.files) {
+                if (item.path in replacements[owner]) {
+                    this.log("transfer ownership: " + item.path + " from " + owner +
+                        " to " + replacements[owner][item.path])
+                    changed++
+                } else {
+                    kept.append(item)
+                }
+            }
+
+            if (changed > 0) {
+                manifest.files = kept
+                this.write_local_manifest(manifest)
+            }
+        }
+    }
+
+    function begin_install_rollback(manifests, replacement_owners = null) {
         local rollback = {
             status = clone_data(this.status),
             files = {},
@@ -364,10 +408,18 @@ class SysrootTransaction {
                 dirs[dir] <- U.is_directory(this.sysroot_path(dir))
             }
             rollback.dirs[manifest.name] <- dirs
+        }
 
-            local manifest_path = this.package_manifest_path(manifest.name)
+        local manifest_names = {}
+        foreach (manifest in manifests) manifest_names[manifest.name] <- true
+        if (replacement_owners != null) {
+            foreach (name, files in replacement_owners) manifest_names[name] <- true
+        }
+
+        foreach (name in U.sorted_keys(manifest_names)) {
+            local manifest_path = this.package_manifest_path(name)
             local existed = U.file_exists(manifest_path)
-            rollback.manifests[manifest.name] <- {
+            rollback.manifests[name] <- {
                 path = manifest_path,
                 existed = existed,
                 text = existed && U.is_regular(manifest_path) ? U.read_text(manifest_path) : "",
@@ -475,15 +527,16 @@ class SysrootTransaction {
             manifests.append(manifest)
         }
 
-        this.detect_conflicts(manifests)
+        local replacements = this.detect_conflicts(manifests)
 
         foreach (manifest in manifests) {
             local artifact = Cache.ensure_artifact(this.source_uri, manifest, function(line) { this.log(line) }.bindenv(this))
             if (artifact != null) artifacts[manifest.name] <- artifact
         }
 
-        local rollback = this.begin_install_rollback(manifests)
+        local rollback = this.begin_install_rollback(manifests, replacements)
         try {
+            this.apply_replacement_transfers(replacements)
             foreach (manifest in manifests) {
                 if (manifest.name in artifacts) this.extract_artifact(artifacts[manifest.name], manifest)
                 else this.log("record meta package: " + manifest.name)
@@ -532,7 +585,7 @@ class SysrootTransaction {
 
         this.report({ phase = "prepare", message = "Checking file conflicts", done = false })
         await sqgi.sleep(0)
-        this.detect_conflicts(manifests)
+        local replacements = this.detect_conflicts(manifests)
 
         for (local i = 0; i < manifests.len(); i++) {
             local manifest = manifests[i]
@@ -548,8 +601,9 @@ class SysrootTransaction {
             if (artifact != null) artifacts[manifest.name] <- artifact
         }
 
-        local rollback = this.begin_install_rollback(manifests)
+        local rollback = this.begin_install_rollback(manifests, replacements)
         try {
+            this.apply_replacement_transfers(replacements)
             for (local i = 0; i < manifests.len(); i++) {
                 local manifest = manifests[i]
                 if (manifest.name in artifacts) {

@@ -3,7 +3,9 @@ local U = import("util.nut")
 
 local APP_NAME = "Ooblerg Package Manager"
 local APP_ID = "dev.ooblerg.pkgmanager"
-local DEFAULT_SOURCE_URI = "http://127.0.0.1:8787/v1/index.json"
+local DEFAULT_SOURCE_URI = "https://ooblerg.xyz/v1/index.json"
+local LEGACY_DEFAULT_SOURCE_URI = "http://127.0.0.1:8787/v1/index.json"
+local LEGACY_HTTP_SOURCE_URI = "http://ooblerg.xyz/v1/index.json"
 
 function appdata_base() {
     local local_appdata = GLib.getenv("LOCALAPPDATA")
@@ -47,19 +49,27 @@ function ensure_dirs() {
 
 function default_settings() {
     return {
-        schema = 1,
+        schema = 3,
         source_uri = DEFAULT_SOURCE_URI,
         sysroot = sysroot_path(),
     }
+}
+
+function is_legacy_default_source_uri(uri) {
+    return uri == LEGACY_DEFAULT_SOURCE_URI || uri == LEGACY_HTTP_SOURCE_URI
 }
 
 function load_settings() {
     local path = config_path()
     if (!U.file_exists(path)) return default_settings()
     local settings = U.read_json(path)
+    local schema = "schema" in settings ? settings.schema : 0
     if (!("source_uri" in settings) || settings.source_uri == "") {
         settings.source_uri <- DEFAULT_SOURCE_URI
+    } else if (schema < 3 && is_legacy_default_source_uri(settings.source_uri)) {
+        settings.source_uri <- DEFAULT_SOURCE_URI
     }
+    settings.schema <- 3
     settings.sysroot <- sysroot_path()
     return settings
 }

@@ -1,0 +1,16 @@
+--- a/meson.build
++++ b/meson.build
+@@ -212,13 +212,4 @@
+ subdir('src/')
+ if get_option('compose')
+     subdir('compose/')
+ endif
+-subdir('tools/')
+-subdir('po/')
+-subdir('data/')
+-subdir('contrib/')
+-subdir('docs/')
+-subdir('tests/')
+-if get_option('qt')
+-    subdir('qt/')
+-endif

@@ -1,0 +1,52 @@
+--- a/src/adw-settings.c
++++ b/src/adw-settings.c
+@@ -202,6 +202,10 @@ static gboolean
+ update_yaru_accent_from_portal (AdwSettings *self)
+ {
++#if defined(__APPLE__) || defined(G_OS_WIN32)
++  (void) self;
++  return FALSE;
++#else
+   g_autoptr (GVariant) variant = NULL;
+ 
+   if (!adw_settings_impl_portal_enabled (self->platform_impl))
+     return FALSE;
+@@ -216,6 +220,7 @@ update_yaru_accent_from_portal (AdwSettings *self)
+   }
+ 
+   return FALSE;
++#endif
+ }
+ 
+ static void
+@@ -228,6 +233,7 @@ on_yaru_display_setting_changed (AdwSettings *self,
+     update_yaru_accent_from_gtk (self);
+ }
+ 
++#if !defined(__APPLE__) && !defined(G_OS_WIN32)
+ static void
+ on_yaru_settings_portal_changed (GDBusProxy  *proxy,
+                                  const char  *sender_name,
+@@ -251,6 +257,7 @@ on_yaru_settings_portal_changed (GDBusProxy  *proxy,
+     update_yaru_accent_from_theme (self, g_variant_get_string (value, NULL));
+   }
+ }
++#endif
+ 
+ typedef enum {
+   ADW_YARU_ACCENT_SOURCE_NONE,
+@@ -279,12 +286,14 @@ init_yaru_accents (AdwSettings *self)
+ 
+   switch (accent_source) {
+     case ADW_YARU_ACCENT_SOURCE_PORTAL:
++#if !defined(__APPLE__) && !defined(G_OS_WIN32)
+       g_signal_connect (adw_settings_impl_portal_get_proxy (self->platform_impl),
+                         "g-signal",
+                         G_CALLBACK (on_yaru_settings_portal_changed), self);
++#endif
+       break;
+ 
+     case ADW_YARU_ACCENT_SOURCE_GTK:
+       g_signal_connect_object (gdk_display_get_default (),
+                                "setting-changed",
+                                G_CALLBACK (on_yaru_display_setting_changed),

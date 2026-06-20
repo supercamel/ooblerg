@@ -35,4 +35,10 @@ if [ -n "$winepath_parts" ]; then
   export WINEPATH=$winepath_parts
 fi
 
+if [ "$#" -gt 0 ] && [ ! -e "$1" ] && [ -e "$1.exe" ]; then
+  exe="$1.exe"
+  shift
+  set -- "$exe" "$@"
+fi
+
 exec $wrapper "$@"
