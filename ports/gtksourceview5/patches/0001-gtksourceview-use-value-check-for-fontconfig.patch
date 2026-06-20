@@ -1,0 +1,20 @@
+--- a/gtksourceview/gtksourceutils.c
++++ b/gtksourceview/gtksourceutils.c
+@@ -73,7 +73,7 @@
+ # endif
+ #endif
+ 
+-#ifdef ENABLE_FONT_CONFIG
++#if ENABLE_FONT_CONFIG
+ # include <fontconfig/fontconfig.h>
+ # include <pango/pangocairo.h>
+ # include <pango/pangofc-fontmap.h>
+@@ -967,7 +967,7 @@ gtk_source_utils_get_default_font (void)
+ 	return font_name;
+ }
+ 
+-#ifdef ENABLE_FONT_CONFIG
++#if ENABLE_FONT_CONFIG
+ static PangoFontMap *
+ load_override_font_fontconfig (void)
+ {

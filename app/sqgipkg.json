@@ -79,6 +79,7 @@
     "packages": [
       "mingw-w64-x86_64-libsoup3",
       "mingw-w64-x86_64-glib-networking",
+      "mingw-w64-x86_64-gsettings-desktop-schemas",
       "mingw-w64-x86_64-ca-certificates",
       "mingw-w64-x86_64-openssl"
     ],

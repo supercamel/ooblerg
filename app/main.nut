@@ -54,6 +54,7 @@ function print_help() {
     print("Ooblerg Package Manager\n")
     print("  sqgi app/main.nut                 launch GTK4 package manager\n")
     print("  sqgi app/main.nut --self-test     run package model/solver tests\n")
+    print("  sqgi app/main.nut --check-source  load repository index and exit\n")
     print("  sqgi app/main.nut --auto-refresh  refresh repository after launch\n")
     print("  sqgi app/main.nut --gtk-smoke-test --source-uri=URI\n")
 }
@@ -71,14 +72,43 @@ if (has_arg("--self-test")) {
     return 0
 }
 
-local UI = import("src/ui/window.nut")
-local app = UI.create_app({
-    auto_refresh = has_arg("--auto-refresh"),
-    gtk_smoke_test = has_arg("--gtk-smoke-test"),
-    source_uri = arg_value("--source-uri", ""),
-    test_package = arg_value("--test-package", "cairo"),
-    test_timeout_ms = arg_value("--test-timeout-ms", "10000").tointeger(),
-})
-local run_code = app.run(0, null)
-if (has_arg("--gtk-smoke-test")) return UI.test_exit_code()
-return run_code
+if (has_arg("--check-source")) {
+    local Config = import("src/config.nut")
+    local Client = import("src/repo/client.nut")
+    local uri = arg_value("--source-uri", Config.DEFAULT_SOURCE_URI)
+    try {
+        local index = Client.load_index(uri)
+        print("[OK] source: " + uri + " loaded " + index.packages.len() + " packages\n")
+        return 0
+    } catch (e) {
+        print("[FAIL] source: " + e + "\n")
+        return 1
+    }
+}
+
+function log_uncaught_error(e) {
+    try {
+        local Config = import("src/config.nut")
+        local U = import("src/util.nut")
+        local stamp = GLib.DateTime.new_now_local().format("%Y-%m-%d %H:%M:%S")
+        U.append_text(Config.log_path(), "[" + stamp + "] fatal: " + e + "\n")
+    } catch (_) {}
+}
+
+try {
+    local UI = import("src/ui/window.nut")
+    local app = UI.create_app({
+        auto_refresh = has_arg("--auto-refresh"),
+        gtk_smoke_test = has_arg("--gtk-smoke-test"),
+        source_uri = arg_value("--source-uri", ""),
+        test_package = arg_value("--test-package", "cairo"),
+        test_timeout_ms = arg_value("--test-timeout-ms", "10000").tointeger(),
+    })
+    local run_code = app.run(0, null)
+    if (has_arg("--gtk-smoke-test")) return UI.test_exit_code()
+    return run_code
+} catch (e) {
+    log_uncaught_error(e)
+    print("[FAIL] app: " + e + "\n")
+    return 1
+}

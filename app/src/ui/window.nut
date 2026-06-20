@@ -251,22 +251,41 @@ function update_transaction_progress(event) {
 }
 
 function append_log(text) {
+    try {
+        local stamp = GLib.DateTime.new_now_local().format("%Y-%m-%d %H:%M:%S")
+        U.append_text(Config.log_path(), "[" + stamp + "] " + text)
+    } catch (_) {}
+
     if (!("log_buffer" in W)) return
-    local end_iter = W.log_buffer.get_end_iter()
-    W.log_buffer.insert(end_iter, text, -1)
-    local mark = W.log_buffer.get_insert()
-    W.log_view.scroll_to_mark(mark, 0.0, false, 0.0, 0.0)
+    try {
+        local end_iter = W.log_buffer.get_end_iter()
+        W.log_buffer.insert(end_iter, text, -1)
+        local mark = W.log_buffer.get_insert()
+        W.log_view.scroll_to_mark(mark, 0.0, false, 0.0, 0.0)
+    } catch (_) {}
+}
+
+function first_error_line(text) {
+    local pos = text.find("\n")
+    if (pos == null) return text
+    return text.slice(0, pos)
 }
 
 function show_error(e) {
-    set_busy(false)
     local text = e == null ? "unknown error" : e.tostring()
-    set_status("Error: " + text)
+    try { set_busy(false) } catch (_) {}
+    try { set_status("Error: " + first_error_line(text)) } catch (_) {}
     append_log("error: " + text + "\n")
 }
 
-function run_task(task) {
-    task.catch(function(e) { show_error(e) })
+function run_task(task_or_factory) {
+    try {
+        local task = typeof task_or_factory == "function" ? task_or_factory() : task_or_factory
+        if (task == null) throw "internal error: operation did not return a task"
+        task.catch(function(e) { show_error(e) })
+    } catch (e) {
+        show_error(e)
+    }
 }
 
 function clear_children(container) {
@@ -536,16 +555,27 @@ function load_local_state() {
 
 async function refresh_repository() {
     set_busy(true, "Refreshing repository")
-    await sqgi.sleep(0)
-    local uri = U.trim(W.source_entry.get_text())
-    State.index = Client.load_index(uri)
-    State.settings.source_uri <- uri
-    Config.save_settings(State.settings)
-    State.status_db.source_uri <- uri
-    rebuild_package_list()
-    rebuild_detail()
-    set_busy(false, "Loaded " + State.index.packages.len() + " packages")
-    append_log("loaded index: " + uri + "\n")
+    local uri = ""
+    try {
+        await sqgi.sleep(0)
+        uri = U.trim(W.source_entry.get_text())
+        if (uri == "") throw "repository index URI is blank"
+        append_log("refresh index: " + uri + "\n")
+        if (U.starts_with(uri, "https://")) {
+            append_log(Client.network_diagnostics(uri) + "\n")
+        }
+        State.index = Client.load_index(uri)
+        State.settings.source_uri <- uri
+        Config.save_settings(State.settings)
+        State.status_db.source_uri <- uri
+        rebuild_package_list()
+        rebuild_detail()
+        set_busy(false, "Loaded " + State.index.packages.len() + " packages")
+        append_log("loaded index: " + uri + "\n")
+    } catch (e) {
+        set_busy(false)
+        throw e
+    }
 }
 
 function plan_change_count(plan) {
@@ -616,21 +646,21 @@ function require_selected() {
 function plan_install_selected() {
     local pkg = require_selected()
     local plan = Solver.install_plan(State.index, State.status_db, [pkg.name])
-    show_plan_dialog(plan, function() { run_task(execute_plan(plan)) })
+    show_plan_dialog(plan, function() { run_task(function() { return execute_plan(plan) }) })
     return plan
 }
 
 function plan_remove_selected() {
     local pkg = require_selected()
     local plan = Solver.remove_plan(State.index, State.status_db, [pkg.name])
-    show_plan_dialog(plan, function() { run_task(execute_plan(plan)) })
+    show_plan_dialog(plan, function() { run_task(function() { return execute_plan(plan) }) })
     return plan
 }
 
 function plan_cleanup_selected() {
     local pkg = require_selected()
     local plan = Solver.cleanup_plan(State.index, State.status_db, [pkg.name])
-    show_plan_dialog(plan, function() { run_task(execute_plan(plan)) })
+    show_plan_dialog(plan, function() { run_task(function() { return execute_plan(plan) }) })
     return plan
 }
 
@@ -848,7 +878,7 @@ function build_header(root) {
     bar.append(W.source_entry)
 
     local refresh = icon_button("view-refresh-symbolic", "Refresh repository index")
-    refresh.connect("clicked", function() { run_task(refresh_repository()) })
+    refresh.connect("clicked", function() { run_task(function() { return refresh_repository() }) })
     bar.append(refresh)
 
     remember("spinner", Gtk.Spinner.new())
@@ -1026,7 +1056,7 @@ function create_app(options = null) {
 
         if (options != null && "auto_refresh" in options && options.auto_refresh) {
             sqgi.timeout_add(100, function() {
-                run_task(refresh_repository())
+                run_task(function() { return refresh_repository() })
                 return false
             })
         }

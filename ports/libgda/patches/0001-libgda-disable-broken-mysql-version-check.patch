@@ -1,0 +1,40 @@
+--- a/configure
++++ b/configure
+@@ -23892,34 +23892,11 @@ else
+   MYSQL_TRUE='#'
+   MYSQL_FALSE=
+ fi
+-
+-
+-
+-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking checking for Mysql API version" >&5
+-printf %s "checking checking for Mysql API version... " >&6; }
+-    AX_COMPARE_VERSION($mysql_version, lt, 8.0.0,
+-
+-    		mysql5=yes
+-    		AC_MSG_RESULT([Using MySQL 5 API])
+-    	,
+-    		mysql5=no
+-    		AC_MSG_RESULT([Using MySQL API for version $mysql_version])
+-    		AC_MSG_CHECKING([checking for Mysql 8 API version])
+-	    	AX_COMPARE_VERSION($mysql_version, [ge], [8.0.0],
+-		    	[
+-				AX_COMPARE_VERSION($mysql_version, [ge], [10.0.0],
+-				[
+-					mysql8=no
+-				],[
+-					mysql8=yes
+-				])
+-		    	],[
+-		    		mysql8=no
+-		    	])
+-    		AC_MSG_RESULT([$mysql8])
+-    	)
+-     if test "x$mysql5" = "xyes"; then
++mysql5=no
++mysql8=no
++
++     if test "x$mysql5" = "xyes"; then
+   MYSQL5_TRUE=
+   MYSQL5_FALSE='#'
+ else

@@ -1,0 +1,20 @@
+--- a/libgda/Makefile.am
++++ b/libgda/Makefile.am
+@@ -301,6 +301,7 @@ INTROSPECTION_GIRS =
+ INTROSPECTION_SCANNER_ARGS = --add-include-path=$(srcdir) \
+ 			     --namespace Gda \
+ 			     --warn-all \
++			     --library-path=.libs \
+ 			     --c-include=libgda/libgda.h
+ 
+ INTROSPECTION_COMPILER_ARGS = --includedir=$(srcdir)
+--- a/libgda/Makefile.in
++++ b/libgda/Makefile.in
+@@ -909,6 +909,7 @@ DISTCLEANFILES = .deps/*.P
+ @ENABLE_GDA_GI_TRUE@INTROSPECTION_SCANNER_ARGS = --add-include-path=$(srcdir) \
+ @ENABLE_GDA_GI_TRUE@			     --namespace Gda \
+ @ENABLE_GDA_GI_TRUE@			     --warn-all \
++@ENABLE_GDA_GI_TRUE@			     --library-path=.libs \
+ @ENABLE_GDA_GI_TRUE@			     --c-include=libgda/libgda.h
+
+ @ENABLE_GDA_GI_TRUE@INTROSPECTION_COMPILER_ARGS = --includedir=$(srcdir)

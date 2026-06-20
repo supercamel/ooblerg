@@ -46,8 +46,8 @@ class RepositoryHttpServer {
             send_text(msg, Soup.Status.not_found, "text/plain", "not found\n")
             return
         }
-        local body = GLib.file_get_contents(resolved.path)
-        send_text(msg, Soup.Status.ok, resolved.content_type, method == "HEAD" ? "" : body)
+        local body = Static.body(this.opts.repo_dir, resolved)
+        send_text(msg, Soup.Status.ok, resolved.content_type, body)
     }
 
     function serve() {

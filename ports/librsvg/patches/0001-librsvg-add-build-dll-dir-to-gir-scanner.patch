@@ -1,0 +1,21 @@
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -359,7 +359,7 @@ pkgconfigdir = $(libdir)/pkgconfig
+ pkgconfig_DATA = librsvg-$(RSVG_API_VERSION).pc
+ 
+ INTROSPECTION_GIRS = Rsvg-@RSVG_API_VERSION@.gir
+-INTROSPECTION_SCANNER_ARGS = --add-include-path=$(srcdir) --symbol-prefix=rsvg --symbol-prefix=librsvg --warn-all
++INTROSPECTION_SCANNER_ARGS = --add-include-path=$(srcdir) --symbol-prefix=rsvg --symbol-prefix=librsvg --warn-all --library-path=.libs
+ INTROSPECTION_COMPILER_ARGS = --includedir=$(srcdir)
+ Rsvg_@RSVG_API_VERSION_U@_gir_NAMESPACE = Rsvg
+ Rsvg_@RSVG_API_VERSION_U@_gir_EXPORT_PACKAGES = librsvg-$(RSVG_API_VERSION)
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -752,7 +752,7 @@ pkgconfigdir = $(libdir)/pkgconfig
+ pkgconfig_DATA = librsvg-$(RSVG_API_VERSION).pc
+ @HAVE_INTROSPECTION_TRUE@INTROSPECTION_GIRS = Rsvg-@RSVG_API_VERSION@.gir
+-@HAVE_INTROSPECTION_TRUE@INTROSPECTION_SCANNER_ARGS = --add-include-path=$(srcdir) --symbol-prefix=rsvg --symbol-prefix=librsvg --warn-all
++@HAVE_INTROSPECTION_TRUE@INTROSPECTION_SCANNER_ARGS = --add-include-path=$(srcdir) --symbol-prefix=rsvg --symbol-prefix=librsvg --warn-all --library-path=.libs
+ @HAVE_INTROSPECTION_TRUE@INTROSPECTION_COMPILER_ARGS = --includedir=$(srcdir)
+ @HAVE_INTROSPECTION_TRUE@Rsvg_@RSVG_API_VERSION_U@_gir_NAMESPACE = Rsvg
+ @HAVE_INTROSPECTION_TRUE@Rsvg_@RSVG_API_VERSION_U@_gir_EXPORT_PACKAGES = librsvg-$(RSVG_API_VERSION)

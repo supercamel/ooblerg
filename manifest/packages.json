@@ -548,6 +548,289 @@
       ]
     },
     {
+      "name": "json-glib",
+      "source": "json-glib",
+      "version_package": "libjson-glib-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection"
+      ],
+      "pre_configure": [
+        "perl -0pi -e \"s/'-Werror=([^']+)'/'-Wno-error=\\$1'/g\" meson.build"
+      ],
+      "meson_options": [
+        "-Dintrospection=enabled",
+        "-Dgtk_doc=disabled",
+        "-Dman=false",
+        "-Dtests=false",
+        "-Dnls=disabled"
+      ],
+      "description": "JSON-GLib GObject JSON parser, builder, generator, serializer, JsonNode, JsonObject, JsonArray, GLib, GObject, SQGI, Vala, and introspection library.",
+      "license": {
+        "spdx": "LGPL-2.1-or-later"
+      },
+      "tags": [
+        "json",
+        "json-glib",
+        "parser",
+        "serializer",
+        "glib",
+        "gobject",
+        "sqgi",
+        "vala",
+        "introspection"
+      ]
+    },
+    {
+      "name": "gtksourceview5",
+      "source": "gtksourceview5",
+      "version_package": "libgtksourceview-5-dev",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "gtk4",
+        "libxml2",
+        "fribidi",
+        "pcre2",
+        "vala"
+      ],
+      "pre_configure": [
+        "perl -0pi -e \"s/'-Werror=([^']+)'/'-Wno-error=\\$1'/g\" meson.build"
+      ],
+      "patches": [
+        "ports/gtksourceview5/patches/0001-gtksourceview-use-value-check-for-fontconfig.patch"
+      ],
+      "meson_options": [
+        "-Dintrospection=enabled",
+        "-Dvapi=true",
+        "-Ddocumentation=false",
+        "-Dbuild-testsuite=false",
+        "-Dinstall-tests=false",
+        "-Dsysprof=false"
+      ],
+      "description": "GtkSourceView 5 GTK4 code editor widget with syntax highlighting, language definitions, completion, snippets, gutter, search, GLib, GObject, SQGI, Vala, and introspection.",
+      "license": {
+        "spdx": "LGPL-2.1-or-later"
+      },
+      "tags": [
+        "gtksourceview",
+        "gtksourceview5",
+        "sourceview",
+        "code-editor",
+        "syntax-highlighting",
+        "text-editor",
+        "gtk4",
+        "glib",
+        "gobject",
+        "sqgi",
+        "vala",
+        "introspection"
+      ]
+    },
+    {
+      "name": "libgda",
+      "source": "libgda5",
+      "version_package": "libgda-5.0-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "libxml2",
+        "sqlite",
+        "json-glib",
+        "libgee",
+        "vala"
+      ],
+      "pre_configure": [
+        "find . \\( -name aclocal.m4 -o -name configure -o -name Makefile.in -o -name Makefile.in.in \\) -exec touch {} +"
+      ],
+      "patches": [
+        "ports/libgda/patches/0001-libgda-disable-broken-mysql-version-check.patch",
+        "ports/libgda/patches/0002-libgda-export-data-pivot-error-quark.patch",
+        "ports/libgda/patches/0003-libgda-add-build-dll-dir-to-gir-scanner.patch"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--enable-shared",
+        "--disable-static",
+        "--disable-tools",
+        "--enable-json",
+        "--enable-introspection=yes",
+        "--enable-vala=yes",
+        "--enable-system-sqlite",
+        "--disable-crypto",
+        "--disable-gtk-doc",
+        "--disable-gtk-doc-html",
+        "--disable-gtk-doc-pdf",
+        "--disable-rebuilds",
+        "--without-ui",
+        "--without-gtksourceview",
+        "--without-goocanvas",
+        "--without-graphviz",
+        "--without-help",
+        "--with-bdb=no",
+        "--with-mysql=no",
+        "--with-postgres=no",
+        "--with-oracle=no",
+        "--with-java=no",
+        "--with-ldap=no",
+        "--with-firebird=no",
+        "--with-mdb=no",
+        "--without-libsoup",
+        "--without-libsecret",
+        "--without-gnome-keyring",
+        "INTROSPECTION_SCANNER=${ROOT}/tools/ooblerg-g-ir-scanner",
+        "INTROSPECTION_COMPILER=/usr/bin/g-ir-compiler"
+      ],
+      "pre_build": [
+        "perl -0pi -e 's#^INTROSPECTION_COMPILER = .*#INTROSPECTION_COMPILER = /usr/bin/g-ir-compiler#m; s#^INTROSPECTION_GENERATE = .*#INTROSPECTION_GENERATE = /usr/bin/g-ir-generate#m; s#^INTROSPECTION_MAKEFILE = .*#INTROSPECTION_MAKEFILE = /usr/share/gobject-introspection-1.0/Makefile.introspection#m; s#^INTROSPECTION_SCANNER = .*#INTROSPECTION_SCANNER = ${ROOT}/tools/ooblerg-g-ir-scanner#m' libgda/Makefile"
+      ],
+      "make": [
+        "make",
+        "-j${JOBS}",
+        "INTROSPECTION_MAKEFILE=/usr/share/gobject-introspection-1.0/Makefile.introspection",
+        "INTROSPECTION_COMPILER=/usr/bin/g-ir-compiler",
+        "INTROSPECTION_SCANNER=${ROOT}/tools/ooblerg-g-ir-scanner",
+        "AUTOCONF=true",
+        "AUTOMAKE=true",
+        "ACLOCAL=true",
+        "AUTOHEADER=true"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "INTROSPECTION_MAKEFILE=/usr/share/gobject-introspection-1.0/Makefile.introspection",
+        "INTROSPECTION_COMPILER=/usr/bin/g-ir-compiler",
+        "INTROSPECTION_SCANNER=${ROOT}/tools/ooblerg-g-ir-scanner",
+        "AUTOCONF=true",
+        "AUTOMAKE=true",
+        "ACLOCAL=true",
+        "AUTOHEADER=true",
+        "install"
+      ],
+      "post_install": [
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
+      ],
+      "description": "GNU Data Access GDA database library with SQLite provider, SQL parsing, connection metadata, data models, JSON support, GLib, GObject, SQGI, Vala, and introspection.",
+      "license": {
+        "spdx": "LGPL-2.1-or-later"
+      },
+      "tags": [
+        "gda",
+        "libgda",
+        "database",
+        "sql",
+        "sqlite",
+        "sqlite3",
+        "data-access",
+        "json",
+        "glib",
+        "gobject",
+        "sqgi",
+        "vala",
+        "introspection"
+      ]
+    },
+    {
+      "name": "librsvg",
+      "source": "librsvg",
+      "version_package": "librsvg2-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "glib-introspection",
+        "cairo",
+        "freetype",
+        "gdk-pixbuf",
+        "harfbuzz",
+        "pango",
+        "libxml2",
+        "vala"
+      ],
+      "patches": [
+        "ports/librsvg/patches/0001-librsvg-add-build-dll-dir-to-gir-scanner.patch"
+      ],
+      "pre_configure": [
+        "mkdir -p debian/missing-sources/system-deps/src/tests/lib && touch debian/missing-sources/system-deps/src/tests/lib/libteststatic.a",
+        "printf '53d40abd2583d23e4718fddf1ebec84dbff8381c07cae67ff7768bbf19c6718e  ${ROOT}/ports/librsvg/vendor/windows_x86_64_gnu-0.48.5.crate\\n' | sha256sum -c - && mkdir -p debian/missing-sources/windows_x86_64_gnu-0.48.5/lib && tar -xOf ${ROOT}/ports/librsvg/vendor/windows_x86_64_gnu-0.48.5.crate windows_x86_64_gnu-0.48.5/lib/libwindows.0.48.5.a > debian/missing-sources/windows_x86_64_gnu-0.48.5/lib/libwindows.0.48.5.a && printf '7fd6c3f76f684bd6fda675b9fe190e0719e99d757c45fdf4a36c11105cd9c9b3  debian/missing-sources/windows_x86_64_gnu-0.48.5/lib/libwindows.0.48.5.a\\n' | sha256sum -c -",
+        "mkdir -p debian/missing-sources/windows_x86_64_gnu/lib && tar -xOf ${ROOT}/ports/librsvg/vendor/windows_x86_64_gnu-0.52.0.crate windows_x86_64_gnu-0.52.0/lib/libwindows.0.52.0.a > debian/missing-sources/windows_x86_64_gnu/lib/libwindows.0.52.0.a && printf '791ae89531cf7a2004881672888c090259d9ce78c1dd05363dc6fc075c1dd845  debian/missing-sources/windows_x86_64_gnu/lib/libwindows.0.52.0.a\\n' | sha256sum -c -",
+        "printf '712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f  ${ROOT}/ports/librsvg/vendor/winapi-x86_64-pc-windows-gnu-0.4.0.crate\\n' | sha256sum -c - && rm -rf debian/missing-sources/winapi-x86_64-pc-windows-gnu/lib && mkdir -p debian/missing-sources/winapi-x86_64-pc-windows-gnu/lib && tar -xzf ${ROOT}/ports/librsvg/vendor/winapi-x86_64-pc-windows-gnu-0.4.0.crate --strip-components=2 -C debian/missing-sources/winapi-x86_64-pc-windows-gnu/lib 'winapi-x86_64-pc-windows-gnu-0.4.0/lib'",
+        "mkdir -p .cargo && touch .cargo/config && perl -0pi -e 's/\\n+\\[target\\.x86_64-pc-windows-gnu\\]\\nlinker = \"x86_64-w64-mingw32-gcc\"\\nar = \"x86_64-w64-mingw32-ar\"\\n//g' .cargo/config && printf '\\n[target.x86_64-pc-windows-gnu]\\nlinker = \"x86_64-w64-mingw32-gcc\"\\nar = \"x86_64-w64-mingw32-ar\"\\n' >> .cargo/config"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--enable-shared",
+        "--disable-static",
+        "--disable-gtk-doc",
+        "--disable-installed-tests",
+        "--disable-always-build-tests",
+        "--disable-pixbuf-loader",
+        "--disable-Bsymbolic",
+        "--enable-introspection=yes",
+        "--enable-vala=yes",
+        "RUST_TARGET=x86_64-pc-windows-gnu",
+        "INTROSPECTION_SCANNER=${ROOT}/tools/ooblerg-g-ir-scanner",
+        "INTROSPECTION_COMPILER=/usr/bin/g-ir-compiler"
+      ],
+      "pre_build": [
+        "perl -0pi -e 's#^INTROSPECTION_COMPILER = .*#INTROSPECTION_COMPILER = /usr/bin/g-ir-compiler#m; s#^INTROSPECTION_GENERATE = .*#INTROSPECTION_GENERATE = /usr/bin/g-ir-generate#m; s#^INTROSPECTION_MAKEFILE = .*#INTROSPECTION_MAKEFILE = /usr/share/gobject-introspection-1.0/Makefile.introspection#m; s#^INTROSPECTION_SCANNER = .*#INTROSPECTION_SCANNER = ${ROOT}/tools/ooblerg-g-ir-scanner#m; s#^VAPIGEN = .*#VAPIGEN = /usr/bin/vapigen-0.56#m; s#^VAPIGEN_MAKEFILE = .*#VAPIGEN_MAKEFILE = /usr/share/vala/Makefile.vapigen#m' Makefile"
+      ],
+      "make": [
+        "make",
+        "-j1",
+        "INTROSPECTION_MAKEFILE=/usr/share/gobject-introspection-1.0/Makefile.introspection",
+        "INTROSPECTION_COMPILER=/usr/bin/g-ir-compiler",
+        "INTROSPECTION_GENERATE=/usr/bin/g-ir-generate",
+        "INTROSPECTION_SCANNER=${ROOT}/tools/ooblerg-g-ir-scanner",
+        "VAPIGEN=/usr/bin/vapigen-0.56",
+        "VAPIGEN_MAKEFILE=/usr/share/vala/Makefile.vapigen"
+      ],
+      "install": [
+        "make",
+        "DESTDIR=${DESTDIR}",
+        "INTROSPECTION_MAKEFILE=/usr/share/gobject-introspection-1.0/Makefile.introspection",
+        "INTROSPECTION_COMPILER=/usr/bin/g-ir-compiler",
+        "INTROSPECTION_GENERATE=/usr/bin/g-ir-generate",
+        "INTROSPECTION_SCANNER=${ROOT}/tools/ooblerg-g-ir-scanner",
+        "VAPIGEN=/usr/bin/vapigen-0.56",
+        "VAPIGEN_MAKEFILE=/usr/share/vala/Makefile.vapigen",
+        "install"
+      ],
+      "post_install": [
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
+      ],
+      "description": "LibRSVG SVG rendering library for loading and drawing SVG vector images with Cairo, GdkPixbuf integration, GTK icons, GLib, GObject, SQGI, Vala, and introspection.",
+      "license": {
+        "spdx": "LGPL-2.1-or-later"
+      },
+      "tags": [
+        "librsvg",
+        "rsvg",
+        "svg",
+        "vector",
+        "icons",
+        "image",
+        "cairo",
+        "gdk-pixbuf",
+        "gtk",
+        "glib",
+        "gobject",
+        "sqgi",
+        "vala",
+        "introspection"
+      ]
+    },
+    {
       "name": "gstreamer",
       "source": "gstreamer1.0",
       "version_package": "libgstreamer1.0-dev",
@@ -2053,6 +2336,106 @@
       ],
       "post_install": [
         "rm -f ${DESTDIR}/mingw64/lib/*.la"
+      ]
+    },
+    {
+      "name": "libarchive",
+      "source": "libarchive",
+      "version_package": "libarchive-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime",
+        "zlib",
+        "bzip2",
+        "xz",
+        "zstd",
+        "libxml2",
+        "expat"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--enable-shared",
+        "--disable-static",
+        "--disable-acl",
+        "--disable-xattr",
+        "--without-openssl",
+        "--without-nettle",
+        "--without-lz4",
+        "--without-libb2",
+        "--without-lzo2",
+        "--without-iconv",
+        "--with-zlib",
+        "--with-bz2lib",
+        "--with-lzma",
+        "--with-zstd",
+        "--with-xml2",
+        "--with-expat"
+      ],
+      "post_install": [
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
+      ],
+      "description": "Libarchive multi-format archive library and BSD tools for tar, zip, cpio, gzip, bzip2, xz, zstd, xar XML metadata, package extraction, and compression workflows.",
+      "license": {
+        "spdx": "BSD-2-Clause"
+      },
+      "tags": [
+        "libarchive",
+        "archive",
+        "tar",
+        "zip",
+        "cpio",
+        "extract",
+        "compression",
+        "gzip",
+        "bzip2",
+        "xz",
+        "zstd",
+        "package-manager"
+      ]
+    },
+    {
+      "name": "libusb",
+      "source": "libusb-1.0",
+      "version_package": "libusb-1.0-0-dev",
+      "build_system": "autotools",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "pre_configure": [
+        "perl -0pi -e \"s/-Werror=/-Wno-error=/g; s/ -Werror / /g\" configure configure.ac"
+      ],
+      "configure": [
+        "--host=x86_64-w64-mingw32",
+        "--build=${BUILD_TRIPLET}",
+        "--prefix=/mingw64",
+        "--enable-shared",
+        "--disable-static",
+        "--disable-udev",
+        "--disable-eventfd",
+        "--disable-timerfd",
+        "--disable-examples-build",
+        "--disable-tests-build"
+      ],
+      "post_install": [
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
+      ],
+      "description": "Libusb 1.0 USB device access library for WinUSB/libusb-compatible devices, device enumeration, control transfers, bulk transfers, hotplug-style workflows, hardware tools, and SQGI native extensions.",
+      "license": {
+        "spdx": "LGPL-2.1-or-later"
+      },
+      "tags": [
+        "libusb",
+        "usb",
+        "hardware",
+        "device",
+        "winusb",
+        "hid",
+        "controller",
+        "embedded",
+        "gadget",
+        "io"
       ]
     },
     {

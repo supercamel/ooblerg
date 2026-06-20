@@ -61,6 +61,21 @@ function write_text(path, text) {
     GLib.file_set_contents(path, text, -1)
 }
 
+function append_text(path, text, max_existing_bytes = 262144) {
+    local existing = ""
+    if (file_exists(path) && is_regular(path)) {
+        try {
+            existing = read_text(path)
+            if (existing.len() > max_existing_bytes) {
+                existing = existing.slice(existing.len() - max_existing_bytes)
+            }
+        } catch (e) {
+            existing = ""
+        }
+    }
+    write_text(path, existing + text)
+}
+
 function write_binary(path, data) {
     local dir = GLib.path_get_dirname(path)
     GLib.mkdir_with_parents(dir, 493)
@@ -136,6 +151,7 @@ return {
     file_exists = file_exists,
     read_text = read_text,
     write_text = write_text,
+    append_text = append_text,
     write_binary = write_binary,
     write_text_atomic = write_text_atomic,
     read_json = read_json,

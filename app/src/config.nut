@@ -29,6 +29,10 @@ function cache_dir() {
     return GLib.build_filenamev([appdata_base(), "cache"])
 }
 
+function log_path() {
+    return GLib.build_filenamev([appdata_base(), "ooblerg.log"])
+}
+
 function status_dir() {
     return GLib.build_filenamev([sysroot_path(), "var", "lib", "ooblerg"])
 }
@@ -88,6 +92,7 @@ return {
     sysroot_path = sysroot_path,
     config_path = config_path,
     cache_dir = cache_dir,
+    log_path = log_path,
     status_dir = status_dir,
     status_path = status_path,
     package_db_dir = package_db_dir,

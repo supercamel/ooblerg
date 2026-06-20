@@ -1,0 +1,20 @@
+--- a/libgda/libgda.def
++++ b/libgda/libgda.def
+@@ -284,6 +284,7 @@ EXPORTS
+   gda_data_pivot_add_data
+   gda_data_pivot_add_field
+   gda_data_pivot_get_type
++  gda_data_pivot_error_quark
+   gda_data_pivot_new
+   gda_data_pivot_populate
+   gda_data_proxy_alter_value_attributes
+--- a/libgda/libgda.symbols
++++ b/libgda/libgda.symbols
+@@ -295,6 +295,7 @@
+ 	gda_data_pivot_add_data
+ 	gda_data_pivot_add_field
+ 	gda_data_pivot_get_type
++	gda_data_pivot_error_quark
+ 	gda_data_pivot_new
+ 	gda_data_pivot_populate
+ 	gda_data_proxy_alter_value_attributes
