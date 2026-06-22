@@ -1054,13 +1054,15 @@ function create_app(options = null) {
         rebuild_detail()
         win.present()
 
-        if (options != null && "auto_refresh" in options && options.auto_refresh) {
+        local gtk_smoke_test = options != null && "gtk_smoke_test" in options && options.gtk_smoke_test
+        local auto_refresh = options == null || !("auto_refresh" in options) || options.auto_refresh
+        if (auto_refresh && !gtk_smoke_test) {
             sqgi.timeout_add(100, function() {
                 run_task(function() { return refresh_repository() })
                 return false
             })
         }
-        if (options != null && "gtk_smoke_test" in options && options.gtk_smoke_test) {
+        if (gtk_smoke_test) {
             local timeout_ms = "test_timeout_ms" in options ? options.test_timeout_ms : 10000
             sqgi.timeout_add(timeout_ms, function() {
                 print("[FAIL] gtk smoke: timed out after " + timeout_ms + "ms\n")

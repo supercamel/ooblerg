@@ -69,10 +69,11 @@ Launch the app from the repository root:
 sqgi app/main.nut
 ```
 
-Launch and immediately refresh the default source:
+The app refreshes the configured source automatically after launch. To skip
+that refresh during debugging:
 
 ```sh
-sqgi app/main.nut --auto-refresh
+sqgi app/main.nut --no-auto-refresh
 ```
 
 Run the local end-to-end GUI smoke harness:

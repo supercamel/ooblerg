@@ -28,7 +28,7 @@
   ],
   "sqgi_source": {
     "repo": "https://github.com/supercamel/sqgi.git",
-    "ref": "27b9f6a299340e90ed428ba33d6a8f72d116e621"
+    "ref": "3a5051af8aa8485a3ed0e2596b46ef2182bd1d81"
   },
   "linux": {
     "arches": [
@@ -74,6 +74,18 @@
       {
         "path": "assets/icons/ooblerg-icon.png",
         "dest": "share/icons/hicolor/1024x1024/apps/ooblerg-icon.png"
+      },
+      {
+        "path": "certs/ca-bundle.crt",
+        "dest": "share/ooblerg/certs/ca-bundle.crt"
+      },
+      {
+        "path": "certs/ca-bundle.crt",
+        "dest": "etc/ssl/certs/ca-bundle.crt"
+      },
+      {
+        "path": "certs/ca-bundle.crt",
+        "dest": "etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
       }
     ],
     "packages": [

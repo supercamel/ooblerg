@@ -78,6 +78,7 @@ class RepositoryBuilder {
         out.repository <- "repository" in opts ? opts.repository : "ooblerg-local"
         out.packages <- "packages" in opts ? opts.packages : []
         out.include_deps <- "include_deps" in opts ? opts.include_deps : false
+        out.only <- "only" in opts ? opts.only : false
         return out
     }
 
@@ -466,6 +467,24 @@ class RepositoryBuilder {
         return this.runner.output("date -u +%Y-%m-%dT%H:%M:%SZ")
     }
 
+    function selected_name_set(names) {
+        local out = {}
+        foreach (name in names) out[name] <- true
+        return out
+    }
+
+    function existing_index_entries(index_path, selected) {
+        local out = []
+        if (!U.file_exists(index_path)) return out
+        local index = sqgi.json.parse(GLib.file_get_contents(index_path))
+        if (!("packages" in index)) return out
+        foreach (entry in index.packages) {
+            if (("name" in entry) && entry.name in selected) continue
+            out.append(entry)
+        }
+        return out
+    }
+
     function package_names(loaded, opts) {
         if (opts.packages.len() == 0) {
             local names = []
@@ -483,8 +502,20 @@ class RepositoryBuilder {
         local v1 = this.path_join([normalized.repo_dir, "v1"])
         local built_at = this.utc_now_iso()
         local entries = []
+        local names = this.package_names(loaded, normalized)
+        local index_path = this.path_join([v1, "index.json"])
 
-        foreach (name in this.package_names(loaded, normalized)) {
+        if (normalized.packages.len() > 0 && !normalized.only) {
+            local selected = this.selected_name_set(names)
+            entries = this.existing_index_entries(index_path, selected)
+            if (!U.file_exists(index_path)) {
+                this.log("partial repo-index: no existing index found; writing selected packages only")
+            } else {
+                this.log("partial repo-index: preserving " + entries.len() + " existing package entries; use --only to write a subset index")
+            }
+        }
+
+        foreach (name in names) {
             local pkg = this.package_or_die(loaded.packages, name)
             local version = this.package_version(pkg)
             local filename = this.artifact_filename(pkg, version)
@@ -515,7 +546,6 @@ class RepositoryBuilder {
             prefix = data.prefix,
             packages = entries,
         }
-        local index_path = this.path_join([v1, "index.json"])
         this.write_json(index_path, index)
         this.write_text(this.path_join([v1, "index.json.sha256"]), this.file_hash(index_path) + "  index.json\n")
         this.log("wrote " + index_path)

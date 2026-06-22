@@ -849,6 +849,7 @@ function command_repo_index(args) {
         repository = opt_value(args, "--repository", "ooblerg-local"),
         packages = roots,
         include_deps = has_flag(args, "--deps"),
+        only = has_flag(args, "--only"),
     }))
     return 0
 }
@@ -1052,7 +1053,7 @@ function print_help() {
     print("  sqgi tools/ooblerg.nut build [--deps] PACKAGE...\n")
     print("  sqgi tools/ooblerg.nut install ARTIFACT...\n")
     print("  sqgi tools/ooblerg.nut rebuild-sysroot [--no-build-shims] [PACKAGE...]\n")
-    print("  sqgi tools/ooblerg.nut repo-index [--deps] [--artifact-dir DIR] [--repo-dir DIR] [PACKAGE...]\n")
+    print("  sqgi tools/ooblerg.nut repo-index [--deps] [--only] [--artifact-dir DIR] [--repo-dir DIR] [PACKAGE...]\n")
 }
 
 function run(args) {
@@ -1100,6 +1101,8 @@ class OoblergApplication {
             "Ooblerg checkout root", "DIR")
         this.app.add_main_option("deps", 0, 0, GLib.OptionArg.none,
             "Include package dependencies for commands that support it", null)
+        this.app.add_main_option("only", 0, 0, GLib.OptionArg.none,
+            "For repo-index PACKAGE..., write only the selected packages instead of merging into the existing index", null)
         this.app.add_main_option("artifact-dir", 0, 0, GLib.OptionArg.string,
             "Artifact directory for repo-index", "DIR")
         this.app.add_main_option("repo-dir", 0, 0, GLib.OptionArg.string,

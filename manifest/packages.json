@@ -191,6 +191,9 @@
         "install"
       ],
       "post_install": [
+        "find . -path './tests/*' -prune -o -path './demos/*' -prune -o -path './tune/*' -prune -o -path './cxx/*' -prune -o -path '*/.libs/*.o' -print | sort > ${ROOT}/out/build/gmp-objects.rsp",
+        "${TARGET}-gcc -shared @${ROOT}/out/build/gmp-objects.rsp -L${ROOT}/out/sysroot/mingw64/lib -Wl,--export-all-symbols -Wl,--output-def,.libs/libgmp-3.dll.def -o .libs/libgmp-10.dll -Wl,--enable-auto-image-base -Wl,--out-implib,.libs/libgmp.dll.a",
+        "mkdir -p ${DESTDIR}/mingw64/bin ${DESTDIR}/mingw64/lib && cp -a .libs/libgmp-10.dll ${DESTDIR}/mingw64/bin/libgmp-10.dll && cp -a .libs/libgmp.dll.a ${DESTDIR}/mingw64/lib/libgmp.dll.a && rm -f ${DESTDIR}/mingw64/lib/libgmp-10.dll",
         "find ${DESTDIR}/mingw64 -name '*.la' -delete"
       ]
     },
@@ -527,6 +530,7 @@
       "deps": [
         "mingw-w64-runtime",
         "glib",
+        "glib-networking",
         "glib-introspection",
         "brotli",
         "nghttp2",
@@ -545,6 +549,26 @@
         "-Dtests=false",
         "-Dinstalled_tests=false",
         "-Ddocs=disabled"
+      ],
+      "post_install": [
+        "${ROOT}/tools/ooblerg-dll-forwarder ${DESTDIR}/mingw64/bin/libsoup-3.0-0.dll ${DESTDIR}/mingw64/bin/libsoup-3.0.dll"
+      ]
+    },
+    {
+      "name": "glib-networking",
+      "version": "2.80.0-ooblerg1",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime",
+        "glib",
+        "openssl"
+      ],
+      "description": "GIO TLS backend and certificate bundle for libsoup HTTPS support.",
+      "license": {
+        "spdx": "LGPL-2.1-or-later"
+      },
+      "commands": [
+        "set -eu; src=${ROOT}/app/dist-windows-x86_64/_msys2-mingw64/mingw64; test -f \"$src/lib/gio/modules/libgioopenssl.dll\"; mkdir -p ${DESTDIR}/mingw64/lib/gio/modules ${DESTDIR}/mingw64/etc/ssl/certs ${DESTDIR}/mingw64/etc/pki/ca-trust/extracted/pem; cp \"$src/lib/gio/modules/libgioopenssl.dll\" ${DESTDIR}/mingw64/lib/gio/modules/; cp \"$src/etc/ssl/certs/ca-bundle.crt\" ${DESTDIR}/mingw64/etc/ssl/certs/; cp \"$src/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\" ${DESTDIR}/mingw64/etc/pki/ca-trust/extracted/pem/"
       ]
     },
     {

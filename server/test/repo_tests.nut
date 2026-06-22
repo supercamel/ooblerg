@@ -61,10 +61,75 @@ function test_native_sdk_dependency_closure() {
     assert(!found_busybox)
 }
 
+function package_count(index_path) {
+    return sqgi.json.parse(GLib.file_get_contents(index_path)).packages.len()
+}
+
+function has_package(index_path, name) {
+    local index = sqgi.json.parse(GLib.file_get_contents(index_path))
+    foreach (pkg in index.packages) {
+        if (pkg.name == name) return true
+    }
+    return false
+}
+
+function test_partial_repo_index_preserves_existing_entries() {
+    local root = GLib.build_filenamev([GLib.get_tmp_dir(), "ooblerg-repo-test-" + GLib.uuid_string_random()])
+    local manifest_dir = GLib.build_filenamev([root, "manifest"])
+    local tools_dir = GLib.build_filenamev([root, "tools"])
+    GLib.mkdir_with_parents(manifest_dir, 493)
+    GLib.mkdir_with_parents(tools_dir, 493)
+    GLib.file_set_contents(GLib.build_filenamev([tools_dir, "ooblerg.nut"]), "", -1)
+    GLib.file_set_contents(GLib.build_filenamev([manifest_dir, "packages.json"]), sqgi.json.stringify({
+        target = "x86_64-w64-mingw32",
+        prefix = "/mingw64",
+        packages = [
+            { name = "alpha", kind = "meta", version = "1", description = "Alpha package" },
+            { name = "beta", kind = "meta", version = "1", description = "Beta package" },
+        ],
+    }, 2), -1)
+
+    local builder = Builder.RepositoryBuilder()
+    local repo_dir = GLib.build_filenamev([root, "out", "repo"])
+    local index_path = GLib.build_filenamev([repo_dir, "v1", "index.json"])
+    builder.rebuild({
+        root = root,
+        artifact_dir = GLib.build_filenamev([root, "out", "artifacts"]),
+        repo_dir = repo_dir,
+        repository = "test-repo",
+        packages = [],
+    })
+    assert(package_count(index_path) == 2)
+
+    builder.rebuild({
+        root = root,
+        artifact_dir = GLib.build_filenamev([root, "out", "artifacts"]),
+        repo_dir = repo_dir,
+        repository = "test-repo",
+        packages = ["alpha"],
+    })
+    assert(package_count(index_path) == 2)
+    assert(has_package(index_path, "alpha"))
+    assert(has_package(index_path, "beta"))
+
+    builder.rebuild({
+        root = root,
+        artifact_dir = GLib.build_filenamev([root, "out", "artifacts"]),
+        repo_dir = repo_dir,
+        repository = "test-repo",
+        packages = ["alpha"],
+        only = true,
+    })
+    assert(package_count(index_path) == 1)
+    assert(has_package(index_path, "alpha"))
+    assert(!has_package(index_path, "beta"))
+}
+
 test_unsafe_paths()
 test_content_types()
 test_builder_normalizes_paths()
 test_builder_rejects_unsafe_tar_members()
 test_native_sdk_dependency_closure()
+test_partial_repo_index_preserves_existing_entries()
 
 return true
