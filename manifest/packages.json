@@ -24,9 +24,10 @@
         "python",
         "meson",
         "git",
-        "gcc"
+        "gcc",
+        "gdb"
       ],
-      "description": "Windows-native compiler and build tools for running builds inside the packaged sysroot without shipping a Unix shell."
+      "description": "Windows-native compiler, debugger, and build tools for running builds inside the packaged sysroot without shipping a Unix shell."
     },
     {
       "name": "pkgconf",
@@ -327,6 +328,39 @@
         "make -C ${ROOT}/out/build/gcc -j${JOBS} STAGE1_LIBS='-L${ROOT}/out/sysroot/mingw64/lib' POSTSTAGE1_LIBS='-L${ROOT}/out/sysroot/mingw64/lib'",
         "make -C ${ROOT}/out/build/gcc DESTDIR=${DESTDIR} install",
         "rm -f ${DESTDIR}/mingw64/bin/libstdc++-6.dll",
+        "find ${DESTDIR}/mingw64 -name '*.la' -delete"
+      ]
+    },
+    {
+      "name": "gdb",
+      "source": "gdb",
+      "version_package": "gdb",
+      "version_suffix": "+ooblerg1",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime",
+        "expat",
+        "zlib",
+        "xz",
+        "zstd",
+        "gmp",
+        "mpfr"
+      ],
+      "patches": [
+        "ports/gdb/patches/0001-gdb-bfd-build-chew-with-build-flags.patch",
+        "ports/gdb/patches/0002-gdbsupport-add-printf-attribute-fallback.patch",
+        "ports/gdb/patches/0003-gdb-prefer-gnulib-headers-before-sysroot.patch"
+      ],
+      "description": "GNU Debugger cross-built as a Windows-native MinGW debugger for inspecting x86_64 Windows binaries.",
+      "license": {
+        "spdx": "GPL-3.0-or-later"
+      },
+      "commands": [
+        "src=$PWD; build=${ROOT}/out/build/gdb; rm -rf \"$build\"/*; cd \"$build\" && LDFLAGS='-L${ROOT}/out/sysroot/mingw64/lib -Wl,--stack,12582912' \"$src/configure\" --build=${BUILD_TRIPLET} --host=${TARGET} --target=${TARGET} --prefix=/mingw64 --disable-nls --disable-werror --disable-tui --disable-source-highlight --with-intel-pt=no --with-amd-dbgapi=no --without-python --without-guile --without-debuginfod --without-babeltrace --without-curses --with-expat --with-libexpat-prefix=${ROOT}/out/sysroot/mingw64 --with-system-zlib --with-lzma --with-liblzma-prefix=${ROOT}/out/sysroot/mingw64 --with-zstd --with-xxhash=no --with-gmp=${ROOT}/out/sysroot/mingw64 --with-mpfr=${ROOT}/out/sysroot/mingw64 MAKEINFO=true",
+        "make -C ${ROOT}/out/build/gdb -j${JOBS} MAKEINFO=true all-gdb",
+        "make -C ${ROOT}/out/build/gdb DESTDIR=${DESTDIR} MAKEINFO=true install-gdb",
+        "mkdir -p ${DESTDIR}/mingw64/share/doc/gdb",
+        "cp COPYING3 README ${DESTDIR}/mingw64/share/doc/gdb/",
         "find ${DESTDIR}/mingw64 -name '*.la' -delete"
       ]
     },
@@ -1154,7 +1188,12 @@
         "tiff",
         "sqlite",
         "proj",
-        "expat"
+        "expat",
+        "curl",
+        "geos",
+        "xz",
+        "libxml2",
+        "zstd"
       ],
       "cmake_options": [
         "-DBUILD_SHARED_LIBS=ON",
@@ -1696,6 +1735,50 @@
         "login",
         "registry",
         "xdg",
+        "gobject",
+        "introspection"
+      ]
+    },
+    {
+      "name": "gworldscene",
+      "source": "https://github.com/supercamel/gworldscene.git",
+      "source_type": "git",
+      "source_ref": "8cf82383fa315daf8ba24f231f6265a8e7c684f8",
+      "version": "0.1.0+git.8cf8238",
+      "build_system": "meson",
+      "deps": [
+        "mingw-w64-runtime",
+        "gtk4",
+        "gdk-pixbuf",
+        "libepoxy",
+        "gdal",
+        "assimp",
+        "libsoup3",
+        "glm",
+        "zlib",
+        "glib-introspection",
+        "vala"
+      ],
+      "patches": [
+        "ports/gworldscene/patches/0001-gworldscene-make-examples-and-tests-optional.patch",
+        "ports/gworldscene/patches/0002-gworldscene-use-prefix-relative-install-dirs.patch"
+      ],
+      "description": "GTK 4 GtkGLArea geospatial scene widget for terrain, map imagery, globe rendering, scene nodes, models, GLib, SQGI, Vala, and introspection applications.",
+      "meson_options": [
+        "-Dexamples=false",
+        "-Dtests=false"
+      ],
+      "post_install": [
+        "mkdir -p ${DESTDIR}${PREFIX}/bin",
+        "test ! -f ${DESTDIR}${PREFIX}/lib/libgworldscene-0.1-0.dll || cp ${DESTDIR}${PREFIX}/lib/libgworldscene-0.1-0.dll ${DESTDIR}${PREFIX}/bin/"
+      ],
+      "tags": [
+        "geospatial",
+        "terrain",
+        "map",
+        "globe",
+        "gtk4",
+        "opengl",
         "gobject",
         "introspection"
       ]
@@ -2622,6 +2705,33 @@
       "cmake_options": [
         "-DBUILD_TESTING=OFF",
         "-DEIGEN_BUILD_DOC=OFF"
+      ]
+    },
+    {
+      "name": "glm",
+      "source": "glm",
+      "version_package": "libglm-dev",
+      "build_system": "custom",
+      "deps": [
+        "mingw-w64-runtime"
+      ],
+      "description": "OpenGL Mathematics header-only C++ library for GLSL-style vectors, matrices, transforms, quaternions, and graphics math.",
+      "commands": [
+        "test -d glm",
+        "mkdir -p ${DESTDIR}/mingw64/include ${DESTDIR}/mingw64/share/pkgconfig ${DESTDIR}/mingw64/share/doc/glm",
+        "cp -a glm ${DESTDIR}/mingw64/include/",
+        "test ! -f copying.txt || cp copying.txt ${DESTDIR}/mingw64/share/doc/glm/",
+        "printf '%s\\n' 'prefix=/mingw64' 'includedir=${prefix}/include' '' 'Name: glm' 'Description: OpenGL Mathematics' 'Version: 0.9.9.8' 'Cflags: -I${includedir}' > ${DESTDIR}/mingw64/share/pkgconfig/glm.pc"
+      ],
+      "license": {
+        "spdx": "MIT"
+      },
+      "tags": [
+        "opengl",
+        "math",
+        "glm",
+        "graphics",
+        "header-only"
       ]
     },
     {

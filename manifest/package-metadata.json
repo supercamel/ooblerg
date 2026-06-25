@@ -13,14 +13,16 @@
       ]
     },
     "native-sdk": {
-      "description": "Windows-native build SDK meta-package with pkgconf, Ninja, Make, CMake, Python, Meson, Git, and GCC.",
+      "description": "Windows-native build SDK meta-package with pkgconf, Ninja, Make, CMake, Python, Meson, Git, GCC, and GDB.",
       "tags": [
         "sdk",
         "compiler",
+        "debugger",
         "build-tools",
         "cmake",
         "meson",
-        "gcc"
+        "gcc",
+        "gdb"
       ]
     },
     "pkgconf": {
@@ -177,6 +179,16 @@
         "c",
         "c++",
         "toolchain"
+      ]
+    },
+    "gdb": {
+      "description": "GNU Debugger for Windows-native MinGW debugging of x86_64 Windows executables, shared libraries, threads, breakpoints, and backtraces.",
+      "tags": [
+        "debugger",
+        "gdb",
+        "mingw",
+        "toolchain",
+        "native-sdk"
       ]
     },
     "vala": {
@@ -518,6 +530,20 @@
         "registry",
         "run-key",
         "xdg",
+        "gobject",
+        "sqgi",
+        "vala"
+      ]
+    },
+    "gworldscene": {
+      "description": "GWorldScene GTK 4 GtkGLArea geospatial scene widget for terrain, map imagery, globe rendering, scene graph nodes, model loading, GLib, SQGI, Vala, and introspection bindings.",
+      "tags": [
+        "geospatial",
+        "terrain",
+        "maps",
+        "globe",
+        "opengl",
+        "gtk4",
         "gobject",
         "sqgi",
         "vala"
@@ -872,6 +898,19 @@
         "matrix",
         "vector",
         "geometry"
+      ]
+    },
+    "glm": {
+      "description": "OpenGL Mathematics header-only C++ library for GLSL-style vectors, matrices, transforms, quaternions, and graphics math.",
+      "tags": [
+        "c++",
+        "opengl",
+        "math",
+        "glm",
+        "graphics",
+        "matrix",
+        "vector",
+        "header-only"
       ]
     },
     "geos": {

@@ -1,0 +1,19 @@
+diff --git a/gdbsupport/common-defs.h b/gdbsupport/common-defs.h
+index eb8b6dc9e61..2bd8e377bc0 100644
+--- a/gdbsupport/common-defs.h
++++ b/gdbsupport/common-defs.h
+@@ -101,6 +101,14 @@
+ #endif
+ 
+ #include "ansidecl.h"
++#ifndef _GL_ATTRIBUTE_FORMAT_PRINTF_STANDARD
++# if defined __GNUC__
++#  define _GL_ATTRIBUTE_FORMAT_PRINTF_STANDARD(formatstring_parameter, first_argument) \
++    __attribute__ ((__format__ (__gnu_printf__, formatstring_parameter, first_argument)))
++# else
++#  define _GL_ATTRIBUTE_FORMAT_PRINTF_STANDARD(formatstring_parameter, first_argument)
++# endif
++#endif
+ /* This is defined by ansidecl.h, but we prefer gnulib's version.  On
+    MinGW, gnulib might enable __USE_MINGW_ANSI_STDIO, which may or not
+    require use of attribute gnu_printf instead of printf.  gnulib

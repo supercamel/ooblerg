@@ -1,0 +1,28 @@
+diff --git a/bfd/doc/local.mk b/bfd/doc/local.mk
+index 9342fe6da11..f84c9f71080 100644
+--- a/bfd/doc/local.mk
++++ b/bfd/doc/local.mk
+@@ -79,8 +79,7 @@ MKDOC = %D%/chew$(EXEEXT_FOR_BUILD)
+ 
+ $(MKDOC): %D%/chew.stamp ; @true
+ %D%/chew.stamp: $(srcdir)/%D%/chew.c %D%/$(am__dirstamp)
+-	$(AM_V_CCLD)$(CC_FOR_BUILD) -o %D%/chw$$$$$(EXEEXT_FOR_BUILD) $(CFLAGS) \
+-	  $(CPPFLAGS) $(LDFLAGS) \
++	$(AM_V_CCLD)$(CC_FOR_BUILD) -o %D%/chw$$$$$(EXEEXT_FOR_BUILD) \
+ 	  -I. -I$(srcdir) -I%D% -I$(srcdir)/../include -I$(srcdir)/../intl -I../intl \
+ 	  $(srcdir)/%D%/chew.c && \
+ 	$(SHELL) $(srcdir)/../move-if-change \
+diff --git a/bfd/Makefile.in b/bfd/Makefile.in
+index 759404ea2a9..da38fe0f50b 100644
+--- a/bfd/Makefile.in
++++ b/bfd/Makefile.in
+@@ -2496,8 +2496,7 @@ coff-tic54x.lo: coff-tic54x.c
+ 
+ $(MKDOC): doc/chew.stamp ; @true
+ doc/chew.stamp: $(srcdir)/doc/chew.c doc/$(am__dirstamp)
+-	$(AM_V_CCLD)$(CC_FOR_BUILD) -o doc/chw$$$$$(EXEEXT_FOR_BUILD) $(CFLAGS) \
+-	  $(CPPFLAGS) $(LDFLAGS) \
++	$(AM_V_CCLD)$(CC_FOR_BUILD) -o doc/chw$$$$$(EXEEXT_FOR_BUILD) \
+ 	  -I. -I$(srcdir) -Idoc -I$(srcdir)/../include -I$(srcdir)/../intl -I../intl \
+ 	  $(srcdir)/doc/chew.c && \
+ 	$(SHELL) $(srcdir)/../move-if-change \

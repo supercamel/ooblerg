@@ -1,0 +1,44 @@
+diff --git a/meson.build b/meson.build
+index 3c7f668..d5e410a 100644
+--- a/meson.build
++++ b/meson.build
+@@ -1,6 +1,6 @@
+ project(
+   'gworldscene',
+-  ['c', 'cpp', 'vala'],
++  ['c', 'cpp'],
+   version: '0.1.0',
+   default_options: [
+     'c_std=c11',
+@@ -12,6 +12,11 @@ gnome = import('gnome')
+ gnome = import('gnome')
+ pkg = import('pkgconfig')
+ 
+ subdir('src')
+-subdir('examples')
+-subdir('tests')
++if get_option('examples')
++  subdir('examples')
++endif
++
++if get_option('tests')
++  subdir('tests')
++endif
+diff --git a/meson_options.txt b/meson_options.txt
+new file mode 100644
+index 0000000..73ca5a3
+--- /dev/null
++++ b/meson_options.txt
+@@ -0,0 +1,12 @@
++option(
++  'examples',
++  type: 'boolean',
++  value: true,
++  description: 'Build example programs',
++)
++option(
++  'tests',
++  type: 'boolean',
++  value: true,
++  description: 'Build test programs',
++)

@@ -1,0 +1,18 @@
+diff --git a/gdb/Makefile.in b/gdb/Makefile.in
+index 5cb669bafbc..c559f3d9b64 100644
+--- a/gdb/Makefile.in
++++ b/gdb/Makefile.in
+@@ -643,12 +643,12 @@ INTERNAL_CFLAGS = \
+ 	$(OPCODES_CFLAGS) \
+ 	$(BFD_CFLAGS) \
+ 	$(INCLUDE_CFLAGS) \
++	$(INCGNU) \
+ 	$(READLINE_CFLAGS) \
+ 	$(ZLIBINC) \
+ 	$(ZSTD_CFLAGS) \
+ 	$(LIBDECNUMBER_CFLAGS) \
+ 	$(INTL_CFLAGS) \
+-	$(INCGNU) \
+ 	$(INCSUPPORT) \
+ 	$(LIBBACKTRACE_INC) \
+ 	$(ENABLE_CFLAGS) \
