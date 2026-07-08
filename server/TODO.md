@@ -134,6 +134,7 @@ server/src/application.nut       Gio.Application command handling
 server/src/repo/builder.nut      repository build, artifact scan, manifests, index
 server/src/http/server.nut       libsoup server setup and request dispatch
 server/src/http/static.nut       safe static file resolution and content types
+server/src/http/metrics.nut      private JSONL request/download metrics
 server/src/util.nut              shared utility helpers
 server/test/repo_tests.nut       repository/static helper tests
 server/test/http_tests.nut       libsoup health endpoint test

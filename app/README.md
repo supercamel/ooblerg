@@ -127,7 +127,10 @@ HTTPS repository downloads use libsoup through Gio. Keep `libsoup3`,
 list so the NSIS payload includes the TLS modules, certificate bundle, and SSL
 runtime DLLs needed on a clean Windows machine. At startup the app points
 `SSL_CERT_FILE`, `CURL_CA_BUNDLE`, and `OPENSSL_CONF` at bundled files when it
-is running from an SQGI app directory.
+is running from an SQGI app directory. If a certificate-specific TLS failure
+prevents loading an HTTPS repository, the app retries the same repository URL
+over HTTP and records that fallback in the log/status so affected Windows users
+can still install packages.
 
 GTK window icons are resolved by name in GTK 4. Keep the hicolor icon files in
 the package manifest so `dev.ooblerg.pkgmanager` can resolve inside the

@@ -1,5 +1,6 @@
 local GLib = import("GLib")
 local Static = import("static.nut")
+local Metrics = import("metrics.nut")
 
 local Soup = null
 try {
@@ -22,9 +23,13 @@ class RepositoryHttpServer {
     opts = null
     server = null
     loop = null
+    metrics = null
 
     constructor(opts) {
         this.opts = opts
+        if ("metrics_dir" in opts && opts.metrics_dir != "") {
+            this.metrics = Metrics.MetricsRecorder(opts.metrics_dir)
+        }
     }
 
     function make_soup_server() {
@@ -33,8 +38,14 @@ class RepositoryHttpServer {
 
     function handle_request(server, msg, path, query) {
         local method = msg.get_method()
+        local status = Soup.Status.ok
+        local bytes = 0
         if (method != "GET" && method != "HEAD") {
-            send_text(msg, Soup.Status.method_not_allowed, "text/plain", "method not allowed\n")
+            status = Soup.Status.method_not_allowed
+            local body = "method not allowed\n"
+            bytes = body.len()
+            send_text(msg, status, "text/plain", body)
+            this.record_request(msg, path, status, bytes)
             return
         }
         if (path == "/healthz") {
@@ -43,11 +54,26 @@ class RepositoryHttpServer {
         }
         local resolved = Static.resolve(this.opts.repo_dir, path)
         if (resolved == null) {
-            send_text(msg, Soup.Status.not_found, "text/plain", "not found\n")
+            status = Soup.Status.not_found
+            local body = "not found\n"
+            bytes = body.len()
+            send_text(msg, status, "text/plain", body)
+            this.record_request(msg, path, status, bytes)
             return
         }
         local body = Static.body(this.opts.repo_dir, resolved)
-        send_text(msg, Soup.Status.ok, resolved.content_type, body)
+        bytes = method == "HEAD" ? 0 : body.len()
+        send_text(msg, status, resolved.content_type, body)
+        this.record_request(msg, path, status, bytes)
+    }
+
+    function record_request(msg, path, status, bytes) {
+        if (this.metrics == null) return
+        try {
+            this.metrics.record(msg, path, status, bytes)
+        } catch (e) {
+            print("metrics write failed: " + e + "\n")
+        }
     }
 
     function serve() {

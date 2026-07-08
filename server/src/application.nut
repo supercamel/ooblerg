@@ -2,6 +2,7 @@ local GLib = import("GLib")
 local Gio = import("Gio")
 
 local Builder = import("repo/builder.nut")
+local Metrics = import("http/metrics.nut")
 
 class RepositoryApplication {
     app = null
@@ -30,6 +31,8 @@ class RepositoryApplication {
             "Serve the repository over HTTP", null)
         this.app.add_main_option("server", 0, 0, GLib.OptionArg.none,
             "Alias for --serve", null)
+        this.app.add_main_option("metrics-report", 0, 0, GLib.OptionArg.none,
+            "Print local request/download metrics and exit", null)
 
         this.app.add_main_option("root", 0, 0, GLib.OptionArg.string,
             "Ooblerg checkout root", "DIR")
@@ -37,6 +40,10 @@ class RepositoryApplication {
             "Artifact directory", "DIR")
         this.app.add_main_option("repo-dir", 0, 0, GLib.OptionArg.string,
             "Repository output directory", "DIR")
+        this.app.add_main_option("metrics-dir", 0, 0, GLib.OptionArg.string,
+            "Private metrics directory", "DIR")
+        this.app.add_main_option("metrics-month", 0, 0, GLib.OptionArg.string,
+            "Restrict metrics report to YYYY-MM", "MONTH")
         this.app.add_main_option("host", 0, 0, GLib.OptionArg.string,
             "Host to bind", "HOST")
         this.app.add_main_option("port", 0, 0, GLib.OptionArg.string,
@@ -56,7 +63,7 @@ class RepositoryApplication {
     }
 
     function make_options(opts) {
-        return this.builder.normalize_options({
+        local normalized = this.builder.normalize_options({
             root = this.string_option(opts, "root", ""),
             artifact_dir = this.string_option(opts, "artifact-dir", "out/artifacts"),
             repo_dir = this.string_option(opts, "repo-dir", "out/repo"),
@@ -65,6 +72,12 @@ class RepositoryApplication {
             repository = this.string_option(opts, "repository", "ooblerg-local"),
             packages = [],
         })
+        local metrics_dir = this.string_option(opts, "metrics-dir", "")
+        if (metrics_dir == "") metrics_dir = GLib.build_filenamev([normalized.root, "var", "metrics"])
+        else if (!GLib.path_is_absolute(metrics_dir)) metrics_dir = GLib.build_filenamev([normalized.root, metrics_dir])
+        normalized.metrics_dir <- metrics_dir
+        normalized.metrics_month <- this.string_option(opts, "metrics-month", "")
+        return normalized
     }
 
     function print_help() {
@@ -73,7 +86,8 @@ class RepositoryApplication {
         print("  sqgi server/main.nut --rebuild-index\n")
         print("  sqgi server/main.nut --serve --rebuild-index\n")
         print("  sqgi server/main.nut --server --rebuild-index\n")
-        print("  options: --root=/path/to/ooblerg --artifact-dir=out/artifacts --repo-dir=out/repo --host=127.0.0.1 --port=8787\n")
+        print("  sqgi server/main.nut --metrics-report [--metrics-month=YYYY-MM]\n")
+        print("  options: --root=/path/to/ooblerg --artifact-dir=out/artifacts --repo-dir=out/repo --metrics-dir=var/metrics --host=127.0.0.1 --port=8787\n")
     }
 
     function run_self_tests() {
@@ -93,6 +107,11 @@ class RepositoryApplication {
 
         local opts = this.make_options(opts_dict)
         local did_action = false
+
+        if (this.has_option(opts_dict, "metrics-report")) {
+            print(Metrics.report_text(opts.metrics_dir, opts.metrics_month))
+            did_action = true
+        }
 
         if (this.has_option(opts_dict, "rebuild-index")) {
             print(this.builder.rebuild(opts))

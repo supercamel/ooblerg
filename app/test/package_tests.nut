@@ -84,6 +84,18 @@ function test_path_integration_fallback() {
     }
 }
 
+function test_http_fallback_classification() {
+    assert(Client.http_fallback_uri("https://ooblerg.xyz/v1/index.json") == "http://ooblerg.xyz/v1/index.json")
+    assert(Client.http_fallback_uri("http://ooblerg.xyz/v1/index.json") == null)
+    assert(Client.should_retry_http("https://ooblerg.xyz/v1/index.json",
+        "g-tls-error-quark:2: Unacceptable TLS certificate"))
+    assert(Client.should_retry_http("https://ooblerg.xyz/v1/index.json",
+        "TLS certificate validation failed"))
+    assert(!Client.should_retry_http("https://ooblerg.xyz/v1/index.json", "HTTP 404"))
+    assert(!Client.should_retry_http("file:///tmp/index.json",
+        "g-tls-error-quark:2: Unacceptable TLS certificate"))
+}
+
 function shell_status(status) {
     if (status > 255) return status / 256
     return status
@@ -414,6 +426,7 @@ test_installed_dependency_skipped()
 test_remove_orphan_cleanup()
 test_remove_dependent_cascade()
 test_path_integration_fallback()
+test_http_fallback_classification()
 test_transaction_install_remove()
 test_transaction_install_rollback_after_failure()
 test_transaction_cleanup_leftovers()

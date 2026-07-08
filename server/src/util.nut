@@ -36,6 +36,14 @@ function join(parts, sep) {
     return out
 }
 
+function sorted_keys(t) {
+    local keys = []
+    if (t == null) return keys
+    foreach (k, v in t) keys.append(k)
+    keys.sort()
+    return keys
+}
+
 function shell_quote(s) {
     local out = "'"
     for (local i = 0; i < s.len(); i++) {
@@ -59,6 +67,7 @@ return {
     ends_with = ends_with,
     trim = trim,
     join = join,
+    sorted_keys = sorted_keys,
     shell_quote = shell_quote,
     file_exists = file_exists,
     is_regular = is_regular,

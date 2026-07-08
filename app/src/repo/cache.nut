@@ -127,7 +127,9 @@ function ensure_artifact(source_uri, manifest, logger = null) {
 
     local uri = Client.resolve_uri(source_uri, artifact.path)
     if (logger != null) logger("download: " + uri)
-    U.write_binary(dst, Client.fetch_bytes(uri))
+    local result = Client.fetch_bytes_result(uri)
+    if (result.used_http_fallback && logger != null) logger("HTTP fallback: " + result.uri)
+    U.write_binary(dst, result.bytes)
     verify(dst, artifact.sha256)
     if (logger != null) logger("verified: " + artifact.filename)
     return dst
@@ -168,7 +170,8 @@ async function ensure_artifact_async(source_uri, manifest, logger = null, progre
     local tmp = dst + ".part." + GLib.uuid_string_random()
     if (logger != null) logger("download: " + uri)
     try {
-        await Client.fetch_to_file(uri, tmp, wrap_progress)
+        local result = await Client.fetch_to_file_result(uri, tmp, wrap_progress)
+        if (result.used_http_fallback && logger != null) logger("HTTP fallback: " + result.uri)
         await verify_async(tmp, artifact.sha256, wrap_progress)
         if (U.file_exists(dst)) U.delete_file(dst)
         GLib.rename(tmp, dst)

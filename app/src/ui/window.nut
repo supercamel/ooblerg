@@ -564,14 +564,21 @@ async function refresh_repository() {
         if (U.starts_with(uri, "https://")) {
             append_log(Client.network_diagnostics(uri) + "\n")
         }
-        State.index = Client.load_index(uri)
-        State.settings.source_uri <- uri
+        local result = Client.load_index_result(uri)
+        State.index = result.index
+        local effective_uri = result.uri
+        if (result.used_http_fallback) {
+            append_log("TLS certificate check failed for " + uri + "; using HTTP fallback: " + effective_uri + "\n")
+        }
+        State.settings.source_uri <- effective_uri
         Config.save_settings(State.settings)
-        State.status_db.source_uri <- uri
+        State.status_db.source_uri <- effective_uri
         rebuild_package_list()
         rebuild_detail()
-        set_busy(false, "Loaded " + State.index.packages.len() + " packages")
-        append_log("loaded index: " + uri + "\n")
+        local status = "Loaded " + State.index.packages.len() + " packages"
+        if (result.used_http_fallback) status += " using HTTP fallback"
+        set_busy(false, status)
+        append_log("loaded index: " + effective_uri + "\n")
     } catch (e) {
         set_busy(false)
         throw e

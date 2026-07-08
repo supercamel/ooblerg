@@ -18,6 +18,24 @@ function is_https_uri(uri) {
     return U.starts_with(uri, "https://")
 }
 
+function http_fallback_uri(uri) {
+    if (!is_https_uri(uri)) return null
+    return "http://" + uri.slice("https://".len())
+}
+
+function looks_like_tls_certificate_error(e) {
+    local text = e == null ? "" : e.tostring().tolower()
+    if (text.find("g-tls-error-quark") != null) return true
+    if (text.find("unacceptable tls certificate") != null) return true
+    if (text.find("tls") != null && text.find("certificate") != null) return true
+    return false
+}
+
+function should_retry_http(uri, e) {
+    return is_https_uri(uri) && looks_like_tls_certificate_error(e) &&
+        http_fallback_uri(uri) != null
+}
+
 function env_value(name) {
     local value = GLib.getenv(name)
     if (value == null || value == "") return "<unset>"
@@ -57,6 +75,12 @@ function fetch_error(uri, e) {
     return "failed to fetch " + uri + ": " + text
 }
 
+function fetch_fallback_error(uri, fallback, first_error, fallback_error) {
+    return "failed to fetch " + uri + ": " + first_error +
+        "\nRetried over HTTP as " + fallback + " but that also failed: " + fallback_error +
+        "\n" + network_diagnostics(uri)
+}
+
 function local_path_from_uri(uri) {
     if (U.starts_with(uri, "file://")) return uri.slice("file://".len())
     return uri
@@ -93,7 +117,7 @@ function resolve_uri(base_uri, rel) {
     return GLib.build_filenamev([GLib.path_get_dirname(local_path_from_uri(base_uri)), rel])
 }
 
-function fetch_bytes(uri) {
+function fetch_bytes_once(uri) {
     uri = U.trim(uri)
     if (uri == "") throw "source URI is blank"
     if (!is_http_uri(uri)) {
@@ -111,6 +135,36 @@ function fetch_bytes(uri) {
     } catch (e) {
         throw fetch_error(uri, e)
     }
+}
+
+function fetch_bytes_result(uri) {
+    uri = U.trim(uri)
+    try {
+        return {
+            uri = uri,
+            bytes = fetch_bytes_once(uri),
+            used_http_fallback = false,
+            original_uri = uri,
+        }
+    } catch (e) {
+        if (!should_retry_http(uri, e)) throw e
+        local fallback = http_fallback_uri(uri)
+        try {
+            return {
+                uri = fallback,
+                bytes = fetch_bytes_once(fallback),
+                used_http_fallback = true,
+                original_uri = uri,
+                fallback_reason = e.tostring(),
+            }
+        } catch (fallback_error) {
+            throw fetch_fallback_error(uri, fallback, e, fallback_error)
+        }
+    }
+}
+
+function fetch_bytes(uri) {
+    return fetch_bytes_result(uri).bytes
 }
 
 function query_local_size(path) {
@@ -173,7 +227,7 @@ function stream_to_file(uri, in_stream, output_path, bytes_total, progress = nul
     return task
 }
 
-function fetch_to_file(uri, output_path, progress = null) {
+function fetch_to_file_once(uri, output_path, progress = null) {
     uri = U.trim(uri)
     if (uri == "") throw "source URI is blank"
 
@@ -208,14 +262,56 @@ function fetch_to_file(uri, output_path, progress = null) {
     return stream_to_file(uri, in_stream, output_path, bytes_total, progress)
 }
 
+async function fetch_to_file_result(uri, output_path, progress = null) {
+    uri = U.trim(uri)
+    try {
+        local bytes_written = await fetch_to_file_once(uri, output_path, progress)
+        return {
+            uri = uri,
+            bytes = bytes_written,
+            used_http_fallback = false,
+            original_uri = uri,
+        }
+    } catch (e) {
+        if (!should_retry_http(uri, e)) throw e
+        local fallback = http_fallback_uri(uri)
+        try {
+            local bytes_written = await fetch_to_file_once(fallback, output_path, progress)
+            return {
+                uri = fallback,
+                bytes = bytes_written,
+                used_http_fallback = true,
+                original_uri = uri,
+                fallback_reason = e.tostring(),
+            }
+        } catch (fallback_error) {
+            throw fetch_fallback_error(uri, fallback, e, fallback_error)
+        }
+    }
+}
+
+function fetch_to_file(uri, output_path, progress = null) {
+    local task = sqgi.Task()
+    fetch_to_file_result(uri, output_path, progress).then(
+        function(result) { task.resolve(result.bytes) },
+        function(e) { task.reject(e) })
+    return task
+}
+
 function fetch_text(uri) {
     return fetch_bytes(uri)
 }
 
-function load_index(uri) {
-    local index = sqgi.json.parse(fetch_text(uri))
+function load_index_result(uri) {
+    local result = fetch_bytes_result(uri)
+    local index = sqgi.json.parse(result.bytes)
     Manifest.validate_index(index)
-    return index
+    result.index <- index
+    return result
+}
+
+function load_index(uri) {
+    return load_index_result(uri).index
 }
 
 function load_package_manifest(source_uri, pkg) {
@@ -229,9 +325,15 @@ function load_package_manifest(source_uri, pkg) {
 
 return {
     resolve_uri = resolve_uri,
+    http_fallback_uri = http_fallback_uri,
+    looks_like_tls_certificate_error = looks_like_tls_certificate_error,
+    should_retry_http = should_retry_http,
+    fetch_bytes_result = fetch_bytes_result,
     fetch_bytes = fetch_bytes,
+    fetch_to_file_result = fetch_to_file_result,
     fetch_to_file = fetch_to_file,
     fetch_text = fetch_text,
+    load_index_result = load_index_result,
     load_index = load_index,
     load_package_manifest = load_package_manifest,
     network_diagnostics = network_diagnostics,
